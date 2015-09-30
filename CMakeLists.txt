@@ -77,7 +77,7 @@ include_directories(include)
 # - Executable
 add_executable(PandoraInterface ${PROJECT_SOURCE_DIR}/test/PandoraInterface.cc)
 if(PANDORA_MONITORING)
-    target_include_directories(PandoraInterface PUBLIC ${ROOT_INCLUDE_DIRS})
+    include_directories(${ROOT_INCLUDE_DIRS})
     target_link_libraries(PandoraInterface ${ROOT_LIBRARIES})
 endif()
 #target_link_libraries(PandoraInterface ${PROJECT_NAME})
