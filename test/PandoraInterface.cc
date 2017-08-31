@@ -51,6 +51,15 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters);
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
+/**
+ *  @brief  Print the list of configurable options
+ *
+ *  @return false, to force abort
+ */
+bool PrintOptions();
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
 int main(int argc, char *argv[])
 {
     try
@@ -113,6 +122,9 @@ int main(int argc, char *argv[])
 
 bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
 {
+    if (1 == argc)
+        return PrintOptions();
+
     int c(0);
 
     while ((c = getopt(argc, argv, "i:n:t::h")) != -1)
@@ -130,15 +142,23 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
             break;
         case 'h':
         default:
-            std::cout << std::endl << "./bin/PandoraInterface " << std::endl
-                      << "    -i PandoraSettings.xml  (mandatory)" << std::endl
-                      << "    -n NEventsToProcess     (optional)" << std::endl
-                      << "    -t                      (optional, display event times)" << std::endl << std::endl;
-            return false;
+            return PrintOptions();
         }
     }
 
     return true;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+bool PrintOptions()
+{
+    std::cout << std::endl << "./bin/PandoraInterface " << std::endl
+              << "    -i PandoraSettings.xml  (required)" << std::endl
+              << "    -n NEventsToProcess     (optional)" << std::endl
+              << "    -t                      (optional, display event times)" << std::endl << std::endl;
+
+    return false;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
