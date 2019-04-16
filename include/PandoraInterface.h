@@ -6,7 +6,7 @@
  *  $Log: $
  */
 #ifndef PANDORA_INTERFACE_H
-#define PANDORA_INTERFACE_H 1
+define PANDORA_INTERFACE_H 1
 
 #include "Pandora/PandoraInputTypes.h"
 
@@ -62,6 +62,15 @@ void CreatePandoraInstances(const Parameters &parameters, const pandora::Pandora
  *  @param  pPrimaryPandora the address of the primary pandora instance
  */
 void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
+
+/**
+ *   @brief  Load hits from root file
+ *
+ *   @param  parameters the application parameters
+ *   @param  pPrimaryPandora the address of the primary pandora instance
+ *   @param  nEvents event number to load
+ */
+void LoadHits(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents);
 
 /**
  *  @brief  Parse the command line arguments, setting the application parameters

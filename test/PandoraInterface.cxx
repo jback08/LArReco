@@ -26,6 +26,8 @@
 
 #ifdef MONITORING
 #include "TApplication.h"
+
+#include "TChain.h"
 #endif
 
 #include <getopt.h>
@@ -114,8 +116,55 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
         if (parameters.m_shouldDisplayEventNumber)
             std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
 
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LoadHits(parameters, pPrimaryPandora, nEvents));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void LoadHits(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents)
+{
+    TChain *pTChain = new TChain("G4TPC");
+
+    std::vector<int> *cellX(nullptr), *cellY(nullptr), *cellZ(nullptr), *cellEnergy(nullptr);
+
+    pTChain->SetBranchAddress("CellX", &cellX);
+    pTChain->SetBranchAddress("CellY", &cellY);
+    pTChain->SetBranchAddress("CellZ", &cellZ);
+    pTChain->SetBranchAddress("Energy", &cellEnergy);
+
+    pTChain->GetEntry(nEvents);
+
+    for (int iHit = 0; iHit < cellEnergy.size(); ++iHit)
+    {
+        const pandora::CartesianVector localPosition(cellX.at(counter), cellY.at(counter), cellZ.at(counter));
+
+        // Mainly dummy parameters
+        PandoraApi::CaloHit::Parameters parameters;
+        parameters.m_positionVector = localPosition;
+        parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parameters.m_cellGeometry = pandora::RECTANGULAR;
+        parameters.m_cellSize0 = 1.f;
+        parameters.m_cellSize1 = 1.f;
+        parameters.m_cellThickness = 1.f;
+        parameters.m_nCellRadiationLengths = 1.f;
+        parameters.m_nCellInteractionLengths = 1.f;
+        parameters.m_time = 0.f;
+        parameters.m_inputEnergy = cellEnergy.at(counter);
+        parameters.m_mipEquivalentEnergy = 1.f;
+        parameters.m_electromagneticEnergy = cellEnergy.at(counter);
+        parameters.m_hadronicEnergy = cellEnergy.at(counter);
+        parameters.m_isDigital = false;
+        parameters.m_hitType = pandora::HIT_CUSTOM;
+        parameters.m_hitRegion = pandora::SINGLE_REGION;
+        parameters.m_layer = 0;
+        parameters.m_isInOuterSamplingLayer = false;
+        parameters.m_pParentAddress = (void*)(static_cast<uintptr_t>(iHit));
+
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(pandora, parameters));
     }
 }
 
