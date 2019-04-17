@@ -131,9 +131,9 @@ void LoadGeometry(const Pandora *const pPrimaryPandora)
     {
         PandoraApi::Geometry::LArTPC::Parameters parameters;
         parameters.m_larTPCVolumeId = 0;
-        parameters.m_centerX = 0.f;
-        parameters.m_centerY = 0.f;
-        parameters.m_centerZ = 0.f;
+        parameters.m_centerX = 50.f;
+        parameters.m_centerY = 50.f;
+        parameters.m_centerZ = 50.f;
         parameters.m_widthX = 100.f;
         parameters.m_widthY = 100.f;
         parameters.m_widthZ = 100.f;
@@ -155,25 +155,27 @@ void LoadGeometry(const Pandora *const pPrimaryPandora)
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const pPrimaryPandora, const int /*nEvents*/)
+void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents)
 {
     TChain *pTChain = new TChain("G4TPC");
     pTChain->Add(inputParameters.m_eventFileNameList.c_str());
 
-    double cellX(std::numeric_limits<double>::max());
-    double cellY(std::numeric_limits<double>::max());
-    double cellZ(std::numeric_limits<double>::max());
-    double cellEnergy(std::numeric_limits<double>::max());
+    std::vector<float> *cellX(nullptr), *cellY(nullptr), *cellZ(nullptr), *cellEnergy(nullptr);
+
     pTChain->SetBranchAddress("CellX", &cellX);
     pTChain->SetBranchAddress("CellY", &cellY);
     pTChain->SetBranchAddress("CellZ", &cellZ);
-    pTChain->SetBranchAddress("Energy", &cellEnergy);
+    pTChain->SetBranchAddress("CellEnergy", &cellEnergy);
+
+    pTChain->GetEntry(nEvents - 1);
+
+    if (nEvents - 1 >= pTChain->GetEntries())
+        throw StopProcessingException("All event files processed");
 
     // ATTN : Geant4 is mm, Pandora cm
-    for (int iHit = 0; iHit < pTChain->GetEntries(); ++iHit)
+    for (int iHit = 0; iHit < cellEnergy->size(); ++iHit)
     {
-        pTChain->GetEntry(iHit);
-        const pandora::CartesianVector localPosition(cellX/100.f, cellY/100.f, cellZ/100.f);
+        const pandora::CartesianVector localPosition(cellX->at(iHit)/10.f, cellY->at(iHit)/10.f, cellZ->at(iHit)/10.f);
 
         // Mainly dummy parameters
         PandoraApi::CaloHit::Parameters parameters;
@@ -187,10 +189,10 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
         parameters.m_nCellRadiationLengths = 1.f;
         parameters.m_nCellInteractionLengths = 1.f;
         parameters.m_time = 0.f;
-        parameters.m_inputEnergy = cellEnergy;
+        parameters.m_inputEnergy = cellEnergy->at(iHit);
         parameters.m_mipEquivalentEnergy = 1.f;
-        parameters.m_electromagneticEnergy = cellEnergy;
-        parameters.m_hadronicEnergy = cellEnergy;
+        parameters.m_electromagneticEnergy = cellEnergy->at(iHit);
+        parameters.m_hadronicEnergy = cellEnergy->at(iHit);
         parameters.m_isDigital = false;
         parameters.m_hitType = pandora::TPC_VIEW_W;
         parameters.m_hitRegion = pandora::SINGLE_REGION;
@@ -232,9 +234,6 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
         case 'e':
             parameters.m_eventFileNameList = optarg;
             break;
-        case 'g':
-            parameters.m_geometryFileName = optarg;
-            break;
         case 'n':
             parameters.m_nEventsToProcess = atoi(optarg);
             break;
@@ -264,7 +263,6 @@ bool PrintOptions()
               << "    -r RecoOption          (required) [Full, AllHitsCR, AllHitsNu, CRRemHitsSliceCR, CRRemHitsSliceNu, AllHitsSliceCR, AllHitsSliceNu]" << std::endl
               << "    -i Settings            (required) [algorithm description: xml]" << std::endl
               << "    -e EventFileList       (optional) [colon-separated list of files: xml/pndr]" << std::endl
-              << "    -g GeometryFile        (optional) [detector geometry description: xml/pndr]" << std::endl
               << "    -n NEventsToProcess    (optional) [no. of events to process]" << std::endl
               << "    -s NEventsToSkip       (optional) [no. of events to skip in first file]" << std::endl
               << "    -p                     (optional) [print status]" << std::endl
@@ -374,7 +372,6 @@ bool ProcessRecoOption(const std::string &recoOption, Parameters &parameters)
 void ProcessExternalParameters(const Parameters &parameters, const Pandora *const pPandora)
 {
     auto *const pEventReadingParameters = new lar_content::EventReadingAlgorithm::ExternalEventReadingParameters;
-    pEventReadingParameters->m_geometryFileName = parameters.m_geometryFileName;
     pEventReadingParameters->m_eventFileNameList = parameters.m_eventFileNameList;
     if (parameters.m_nEventsToSkip.IsInitialized()) pEventReadingParameters->m_skipToEvent = parameters.m_nEventsToSkip.Get();
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetExternalParameters(*pPandora, "LArEventReading", pEventReadingParameters));

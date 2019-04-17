@@ -30,7 +30,6 @@ public:
 
     std::string         m_settingsFile;                 ///< The path to the pandora settings file (mandatory parameter)
     std::string         m_eventFileNameList;            ///< Colon-separated list of file names to be processed
-    std::string         m_geometryFileName;             ///< Name of the file containing geometry information
 
     int                 m_nEventsToProcess;             ///< The number of events to process (default all events in file)
     bool                m_shouldDisplayEventNumber;     ///< Whether event numbers should be displayed (default false)
@@ -121,7 +120,6 @@ void ProcessExternalParameters(const Parameters &parameters, const pandora::Pand
 inline Parameters::Parameters() :
     m_settingsFile(""),
     m_eventFileNameList(""),
-    m_geometryFileName(""),
     m_nEventsToProcess(-1),
     m_shouldDisplayEventNumber(false),
     m_shouldRunAllHitsCosmicReco(true),
