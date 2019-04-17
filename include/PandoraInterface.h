@@ -43,6 +43,10 @@ public:
     bool                m_shouldPerformSliceId;         ///< Whether to identify slices and select most appropriate pfos
     bool                m_printOverallRecoStatus;       ///< Whether to print current operation status messages
 
+    float               m_wireAngleU;                   ///< Wire angle U
+    float               m_wireAngleV;                   ///< Wire angle V
+    float               m_wireAngleW;                   ///< Wire angle W
+
     pandora::InputInt   m_nEventsToSkip;                ///< The number of events to skip
 };
 
@@ -65,18 +69,41 @@ void ProcessEvents(const Parameters &parameters, const pandora::Pandora *const p
 /**
  *  @brief  Load geometry (hard coded for now)
  *
+ *  @param  parameters the application parameters
  *  @param  pPrimaryPandora the address of the primary pandora instance
  */
-void LoadGeometry(const pandora::Pandora *const pPrimaryPandora);
+void LoadGeometry(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora);
 
 /**
- *   @brief  Load hits from root file
+ *  @brief  Load hits from root file
  *
- *   @param  parameters the application parameters
- *   @param  pPrimaryPandora the address of the primary pandora instance
- *   @param  nEvents event number to load
+ *  @param  parameters the application parameters
+ *  @param  pPrimaryPandora the address of the primary pandora instance
+ *  @param  nEvents event number to load
  */
 void LoadHits(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents);
+
+/**
+ *  @brief  Convert the YZ position to a U
+ *
+ *  @param  y position
+ *  @param  z position
+ *  @param  parameters the application parameters
+ *
+ *  @return the u position
+ */
+float YZtoU(const float y, const float z, const Parameters &parameters);
+
+/**
+ *  @brief  Convert the YZ position to a V
+ *
+ *  @param  y position
+ *  @param  z position
+ *  @param  parameters the application parameters
+ *
+ *  @return the v position
+ */
+float YZtoV(const float y, const float z, const Parameters &parameters);
 
 /**
  *  @brief  Parse the command line arguments, setting the application parameters
@@ -129,7 +156,10 @@ inline Parameters::Parameters() :
     m_shouldRunNeutrinoRecoOption(true),
     m_shouldRunCosmicRecoOption(true),
     m_shouldPerformSliceId(true),
-    m_printOverallRecoStatus(false)
+    m_printOverallRecoStatus(false),
+    m_wireAngleU(0.623204708099f),
+    m_wireAngleV(-0.623204708099f),
+    m_wireAngleW(0.f)
 {
 }
 

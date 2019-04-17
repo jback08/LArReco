@@ -102,7 +102,7 @@ void CreatePandoraInstances(const Parameters &parameters, const Pandora *&pPrima
     ProcessExternalParameters(parameters, pPrimaryPandora);
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*pPrimaryPandora, new lar_content::LArPseudoLayerPlugin));
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetLArTransformationPlugin(*pPrimaryPandora, new lar_content::LArRotationalTransformationPlugin));
-    LoadGeometry(pPrimaryPandora);
+    LoadGeometry(parameters, pPrimaryPandora);
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*pPrimaryPandora, parameters.m_settingsFile));
 }
 
@@ -125,7 +125,7 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void LoadGeometry(const Pandora *const pPrimaryPandora)
+void LoadGeometry(const Parameters &inputParameters, const Pandora *const pPrimaryPandora)
 {
     try
     {
@@ -140,9 +140,9 @@ void LoadGeometry(const Pandora *const pPrimaryPandora)
         parameters.m_wirePitchU = 0.466899991035f;
         parameters.m_wirePitchV = 0.466899991035f;
         parameters.m_wirePitchW = 0.479200005531f;
-        parameters.m_wireAngleU = 0.623204708099f;
-        parameters.m_wireAngleV = -0.623204708099f;
-        parameters.m_wireAngleW = 0.f;
+        parameters.m_wireAngleU = inputParameters.m_wireAngleU;
+        parameters.m_wireAngleV = inputParameters.m_wireAngleV;
+        parameters.m_wireAngleW = inputParameters.m_wireAngleW;
         parameters.m_sigmaUVW = 1.51300001144;
         parameters.m_isDriftInPositiveX = true;
         PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Geometry::LArTPC::Create(*pPrimaryPandora, parameters));
@@ -177,41 +177,107 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
     {
         const pandora::CartesianVector localPosition(cellX->at(iHit)/10.f, cellY->at(iHit)/10.f, cellZ->at(iHit)/10.f);
 
+        const float x(localPosition.GetX());
+        const float u(YZtoU(localPosition.GetY(), localPosition.GetZ(), inputParameters));
+        const float v(YZtoV(localPosition.GetY(), localPosition.GetZ(), inputParameters));
+        const float w(localPosition.GetZ());
+        const float hitSize(0.5f);
+
         // Mainly dummy parameters
-        PandoraApi::CaloHit::Parameters parameters;
-        parameters.m_positionVector = localPosition;
-        parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parameters.m_cellGeometry = pandora::RECTANGULAR;
-        parameters.m_cellSize0 = 0.1f;
-        parameters.m_cellSize1 = 0.1f;
-        parameters.m_cellThickness = 0.1f;
-        parameters.m_nCellRadiationLengths = 1.f;
-        parameters.m_nCellInteractionLengths = 1.f;
-        parameters.m_time = 0.f;
-        parameters.m_inputEnergy = cellEnergy->at(iHit);
-        parameters.m_mipEquivalentEnergy = 1.f;
-        parameters.m_electromagneticEnergy = cellEnergy->at(iHit);
-        parameters.m_hadronicEnergy = cellEnergy->at(iHit);
-        parameters.m_isDigital = false;
-        parameters.m_hitType = pandora::TPC_VIEW_W;
-        parameters.m_hitRegion = pandora::SINGLE_REGION;
-        parameters.m_layer = 0;
-        parameters.m_isInOuterSamplingLayer = false;
-        parameters.m_pParentAddress = nullptr;
+        PandoraApi::CaloHit::Parameters parametersU;
+        parametersU.m_positionVector = pandora::CartesianVector(x, 0.f, u);
+        parametersU.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parametersU.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parametersU.m_cellGeometry = pandora::RECTANGULAR;
+        parametersU.m_cellSize0 = hitSize;
+        parametersU.m_cellSize1 = hitSize;
+        parametersU.m_cellThickness = hitSize;
+        parametersU.m_nCellRadiationLengths = 1.f;
+        parametersU.m_nCellInteractionLengths = 1.f;
+        parametersU.m_time = 0.f;
+        parametersU.m_inputEnergy = cellEnergy->at(iHit);
+        parametersU.m_mipEquivalentEnergy = 1.f;
+        parametersU.m_electromagneticEnergy = cellEnergy->at(iHit);
+        parametersU.m_hadronicEnergy = cellEnergy->at(iHit);
+        parametersU.m_isDigital = false;
+        parametersU.m_hitType = pandora::TPC_VIEW_U;
+        parametersU.m_hitRegion = pandora::SINGLE_REGION;
+        parametersU.m_layer = 0;
+        parametersU.m_isInOuterSamplingLayer = false;
+        parametersU.m_pParentAddress = nullptr;
+
+        PandoraApi::CaloHit::Parameters parametersV;
+        parametersV.m_positionVector = pandora::CartesianVector(x, 0.f, v);
+        parametersV.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parametersV.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parametersV.m_cellGeometry = pandora::RECTANGULAR;
+        parametersV.m_cellSize0 = hitSize;
+        parametersV.m_cellSize1 = hitSize;
+        parametersV.m_cellThickness = hitSize;
+        parametersV.m_nCellRadiationLengths = 1.f;
+        parametersV.m_nCellInteractionLengths = 1.f;
+        parametersV.m_time = 0.f;
+        parametersV.m_inputEnergy = cellEnergy->at(iHit);
+        parametersV.m_mipEquivalentEnergy = 1.f;
+        parametersV.m_electromagneticEnergy = cellEnergy->at(iHit);
+        parametersV.m_hadronicEnergy = cellEnergy->at(iHit);
+        parametersV.m_isDigital = false;
+        parametersV.m_hitType = pandora::TPC_VIEW_V;
+        parametersV.m_hitRegion = pandora::SINGLE_REGION;
+        parametersV.m_layer = 0;
+        parametersV.m_isInOuterSamplingLayer = false;
+        parametersV.m_pParentAddress = nullptr;
+
+        PandoraApi::CaloHit::Parameters parametersW;
+        parametersW.m_positionVector = pandora::CartesianVector(x, 0.f, w);
+        parametersW.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parametersW.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parametersW.m_cellGeometry = pandora::RECTANGULAR;
+        parametersW.m_cellSize0 = hitSize;
+        parametersW.m_cellSize1 = hitSize;
+        parametersW.m_cellThickness = hitSize;
+        parametersW.m_nCellRadiationLengths = 1.f;
+        parametersW.m_nCellInteractionLengths = 1.f;
+        parametersW.m_time = 0.f;
+        parametersW.m_inputEnergy = cellEnergy->at(iHit);
+        parametersW.m_mipEquivalentEnergy = 1.f;
+        parametersW.m_electromagneticEnergy = cellEnergy->at(iHit);
+        parametersW.m_hadronicEnergy = cellEnergy->at(iHit);
+        parametersW.m_isDigital = false;
+        parametersW.m_hitType = pandora::TPC_VIEW_W;
+        parametersW.m_hitRegion = pandora::SINGLE_REGION;
+        parametersW.m_layer = 0;
+        parametersW.m_isInOuterSamplingLayer = false;
+        parametersW.m_pParentAddress = nullptr;
 
         try
         {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parameters));
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parametersU));
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parametersV));
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parametersW));
         }
         catch (...)
         {
-            std::cout << "Unable to make hit" << std::endl;
+            std::cout << "Unable to make hits" << std::endl;
         }
     }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
+
+float YZtoU(const float y, const float z, const Parameters &parameters)
+{
+    return (z * std::cos(parameters.m_wireAngleU) - y * std::sin(parameters.m_wireAngleU));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
+
+float YZtoV(const float y, const float z, const Parameters &parameters)
+{
+    return (z * std::cos(parameters.m_wireAngleV) - y * std::sin(parameters.m_wireAngleV));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
 
 bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
 {
@@ -240,6 +306,15 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
         case 's':
             parameters.m_nEventsToSkip = atoi(optarg);
             break;
+        case 'u':
+            parameters.m_wireAngleU = atof(optarg);
+            break;
+        case 'v':
+            parameters.m_wireAngleV = atof(optarg);
+            break;
+        case 'w':
+            parameters.m_wireAngleW = atof(optarg);
+            break;
         case 'p':
             parameters.m_printOverallRecoStatus = true;
             break;
@@ -265,6 +340,9 @@ bool PrintOptions()
               << "    -e EventFileList       (optional) [colon-separated list of files: xml/pndr]" << std::endl
               << "    -n NEventsToProcess    (optional) [no. of events to process]" << std::endl
               << "    -s NEventsToSkip       (optional) [no. of events to skip in first file]" << std::endl
+              << "    -u WireAngleU          (optional) [wire angle u, ProtoDUNE assumed]" << std::endl
+              << "    -v WireAngleV          (optional) [wire angle v, ProtoDUNE assumed]" << std::endl
+              << "    -w WireAngleW          (optional) [wire angle w, ProtoDUNE assumed]" << std::endl
               << "    -p                     (optional) [print status]" << std::endl
               << "    -N                     (optional) [print event numbers]" << std::endl << std::endl;
 
