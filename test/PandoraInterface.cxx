@@ -102,6 +102,7 @@ void CreatePandoraInstances(const Parameters &parameters, const Pandora *&pPrima
     ProcessExternalParameters(parameters, pPrimaryPandora);
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetPseudoLayerPlugin(*pPrimaryPandora, new lar_content::LArPseudoLayerPlugin));
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::SetLArTransformationPlugin(*pPrimaryPandora, new lar_content::LArRotationalTransformationPlugin));
+    LoadGeometry(pPrimaryPandora);
     PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ReadSettings(*pPrimaryPandora, parameters.m_settingsFile));
 }
 
@@ -116,7 +117,7 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
         if (parameters.m_shouldDisplayEventNumber)
             std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
 
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, LoadHits(parameters, pPrimaryPandora, nEvents));
+        LoadHits(parameters, pPrimaryPandora, nEvents);
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
     }
@@ -124,22 +125,55 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void LoadHits(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents)
+void LoadGeometry(const Pandora *const pPrimaryPandora)
+{
+    try
+    {
+        PandoraApi::Geometry::LArTPC::Parameters parameters;
+        parameters.m_larTPCVolumeId = 0;
+        parameters.m_centerX = 0.f;
+        parameters.m_centerY = 0.f;
+        parameters.m_centerZ = 0.f;
+        parameters.m_widthX = 100.f;
+        parameters.m_widthY = 100.f;
+        parameters.m_widthZ = 100.f;
+        parameters.m_wirePitchU = 0.466899991035f;
+        parameters.m_wirePitchV = 0.466899991035f;
+        parameters.m_wirePitchW = 0.479200005531f;
+        parameters.m_wireAngleU = 0.623204708099f;
+        parameters.m_wireAngleV = -0.623204708099f;
+        parameters.m_wireAngleW = 0.f;
+        parameters.m_sigmaUVW = 1.51300001144;
+        parameters.m_isDriftInPositiveX = true;
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Geometry::LArTPC::Create(*pPrimaryPandora, parameters));
+    }
+    catch (...)
+    {
+        std::cout << "Cannot load geometry" << std::endl;
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const pPrimaryPandora, const int /*nEvents*/)
 {
     TChain *pTChain = new TChain("G4TPC");
+    pTChain->Add(inputParameters.m_eventFileNameList.c_str());
 
-    std::vector<int> *cellX(nullptr), *cellY(nullptr), *cellZ(nullptr), *cellEnergy(nullptr);
-
+    double cellX(std::numeric_limits<double>::max());
+    double cellY(std::numeric_limits<double>::max());
+    double cellZ(std::numeric_limits<double>::max());
+    double cellEnergy(std::numeric_limits<double>::max());
     pTChain->SetBranchAddress("CellX", &cellX);
     pTChain->SetBranchAddress("CellY", &cellY);
     pTChain->SetBranchAddress("CellZ", &cellZ);
     pTChain->SetBranchAddress("Energy", &cellEnergy);
 
-    pTChain->GetEntry(nEvents);
-
-    for (int iHit = 0; iHit < cellEnergy.size(); ++iHit)
+    // ATTN : Geant4 is mm, Pandora cm
+    for (int iHit = 0; iHit < pTChain->GetEntries(); ++iHit)
     {
-        const pandora::CartesianVector localPosition(cellX.at(counter), cellY.at(counter), cellZ.at(counter));
+        pTChain->GetEntry(iHit);
+        const pandora::CartesianVector localPosition(cellX/100.f, cellY/100.f, cellZ/100.f);
 
         // Mainly dummy parameters
         PandoraApi::CaloHit::Parameters parameters;
@@ -147,24 +181,31 @@ void LoadHits(const Parameters &parameters, const pandora::Pandora *const pPrima
         parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
         parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
         parameters.m_cellGeometry = pandora::RECTANGULAR;
-        parameters.m_cellSize0 = 1.f;
-        parameters.m_cellSize1 = 1.f;
-        parameters.m_cellThickness = 1.f;
+        parameters.m_cellSize0 = 0.1f;
+        parameters.m_cellSize1 = 0.1f;
+        parameters.m_cellThickness = 0.1f;
         parameters.m_nCellRadiationLengths = 1.f;
         parameters.m_nCellInteractionLengths = 1.f;
         parameters.m_time = 0.f;
-        parameters.m_inputEnergy = cellEnergy.at(counter);
+        parameters.m_inputEnergy = cellEnergy;
         parameters.m_mipEquivalentEnergy = 1.f;
-        parameters.m_electromagneticEnergy = cellEnergy.at(counter);
-        parameters.m_hadronicEnergy = cellEnergy.at(counter);
+        parameters.m_electromagneticEnergy = cellEnergy;
+        parameters.m_hadronicEnergy = cellEnergy;
         parameters.m_isDigital = false;
-        parameters.m_hitType = pandora::HIT_CUSTOM;
+        parameters.m_hitType = pandora::TPC_VIEW_W;
         parameters.m_hitRegion = pandora::SINGLE_REGION;
         parameters.m_layer = 0;
         parameters.m_isInOuterSamplingLayer = false;
-        parameters.m_pParentAddress = (void*)(static_cast<uintptr_t>(iHit));
+        parameters.m_pParentAddress = nullptr;
 
-        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(pandora, parameters));
+        try
+        {
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parameters));
+        }
+        catch (...)
+        {
+            std::cout << "Unable to make hit" << std::endl;
+        }
     }
 }
 
