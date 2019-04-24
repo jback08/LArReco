@@ -55,6 +55,7 @@ public:
     float               m_widthX;                       ///< TPC width x
     float               m_widthY;                       ///< TPC width y
     float               m_widthZ;                       ///< TPC width z
+    float               m_hitWidth;                     ///< Hit width in time
 
     pandora::InputInt   m_nEventsToSkip;                ///< The number of events to skip
 };
@@ -78,7 +79,7 @@ public:
 };
 
 typedef std::vector<ProtoHit> ProtoHitVector;
-typedef std::map<int, ProtoHit> ProtoHitMap;
+typedef std::map<pandora::HitType, float> HitTypeToFloatMap;
 
 /**
  *  @brief  Create pandora instances
@@ -226,18 +227,19 @@ inline Parameters::Parameters() :
     m_shouldRunCosmicRecoOption(true),
     m_shouldPerformSliceId(true),
     m_printOverallRecoStatus(false),
-    m_wireAngleU(0.623204708099f),
-    m_wireAngleV(-0.623204708099f),
-    m_wireAngleW(0.f),
-    m_wirePitchU(0.466899991035f),
-    m_wirePitchV(0.466899991035f),
-    m_wirePitchW(0.479200005531f),
-    m_centerX(50.f),
-    m_centerY(50.f),
-    m_centerZ(50.f),
-    m_widthX(100.f),
-    m_widthY(100.f),
-    m_widthZ(100.f)
+    m_wireAngleU(std::numeric_limits<float>::max()),
+    m_wireAngleV(std::numeric_limits<float>::max()),
+    m_wireAngleW(std::numeric_limits<float>::max()),
+    m_wirePitchU(std::numeric_limits<float>::max()),
+    m_wirePitchV(std::numeric_limits<float>::max()),
+    m_wirePitchW(std::numeric_limits<float>::max()),
+    m_centerX(std::numeric_limits<float>::max()),
+    m_centerY(std::numeric_limits<float>::max()),
+    m_centerZ(std::numeric_limits<float>::max()),
+    m_widthX(std::numeric_limits<float>::max()),
+    m_widthY(std::numeric_limits<float>::max()),
+    m_widthZ(std::numeric_limits<float>::max()),
+    m_hitWidth(std::numeric_limits<float>::max())
 {
 }
 

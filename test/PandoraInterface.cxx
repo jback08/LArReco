@@ -207,6 +207,7 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
         protoHitVectorV.push_back(protoHitV);
         protoHitVectorW.push_back(protoHitW);
     }
+
     DownsampleHits(inputParameters, protoHitVectorU);
     DownsampleHits(inputParameters, protoHitVectorV);
     DownsampleHits(inputParameters, protoHitVectorW);
@@ -216,19 +217,22 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
     protoHitVector.insert(protoHitVector.end(), protoHitVectorV.begin(), protoHitVectorV.end());
     protoHitVector.insert(protoHitVector.end(), protoHitVectorW.begin(), protoHitVectorW.end());
 
+    HitTypeToFloatMap hitTypeToThickness;
+    hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_U, inputParameters.m_wirePitchU));
+    hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_V, inputParameters.m_wirePitchV));
+    hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_W, inputParameters.m_wirePitchW));
+
     for (const ProtoHit &protoHit : protoHitVector)
     {
-        const float hitSize(0.5f);
-
         // Mainly dummy parameters
         PandoraApi::CaloHit::Parameters parameters;
         parameters.m_positionVector = pandora::CartesianVector(protoHit.m_x, 0.f, protoHit.m_z);
         parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
         parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
         parameters.m_cellGeometry = pandora::RECTANGULAR;
-        parameters.m_cellSize0 = hitSize;
-        parameters.m_cellSize1 = hitSize;
-        parameters.m_cellThickness = hitSize;
+        parameters.m_cellSize0 = 0.5f;
+        parameters.m_cellSize1 = inputParameters.m_hitWidth;
+        parameters.m_cellThickness = hitTypeToThickness.at(protoHit.m_hitType);
         parameters.m_nCellRadiationLengths = 1.f;
         parameters.m_nCellInteractionLengths = 1.f;
         parameters.m_time = 0.f;
@@ -284,8 +288,6 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
     if (hitPitch < std::numeric_limits<float>::epsilon())
         throw StopProcessingException("Unfeasibly pitch requested");
 
-    ProtoHitMap protoHitMap;
-
     // ATTN : Begin by ordering wire number
     for (ProtoHit &protoHit : protoHitVector)
     {
@@ -293,7 +295,6 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
             throw StopProcessingException("Multiple hit types");
 
         protoHit.m_z = std::floor((protoHit.m_z + 0.5f * hitPitch) / hitPitch) * hitPitch;
-        protoHitMap.insert(ProtoHitMap::value_type(protoHitMap.size(), protoHit));
     }
 
     ProtoHit protoHit1, protoHit2;
@@ -318,16 +319,14 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
 
-bool IdentifyMerge(const Parameters &/*inputParameters*/, ProtoHitVector &protoHitVector, ProtoHit &protoHitA, ProtoHit &protoHitB)
+bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVector, ProtoHit &protoHitA, ProtoHit &protoHitB)
 {
-    const float driftRes(0.5f);
-
     for (int i = 0; i < protoHitVector.size() - 1; i++)
     {
         ProtoHit &protoHit1(protoHitVector.at(i));
         ProtoHit &protoHit2(protoHitVector.at(i+1));
 
-        if (std::fabs(protoHit1.m_z - protoHit2.m_z) < std::numeric_limits<float>::epsilon() && (protoHit1.m_x - protoHit2.m_x < driftRes))
+        if (std::fabs(protoHit1.m_z - protoHit2.m_z) < std::numeric_limits<float>::epsilon() && (protoHit1.m_x - protoHit2.m_x < inputParameters.m_hitWidth))
         {
             protoHit1.m_deleteHit = true;
             protoHit2.m_deleteHit = true;
@@ -419,6 +418,7 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WirePitchU", parameters.m_wirePitchU));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WirePitchV", parameters.m_wirePitchV));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WirePitchW", parameters.m_wirePitchW));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "HitWidth", parameters.m_hitWidth));
     }
     catch (...)
     {
