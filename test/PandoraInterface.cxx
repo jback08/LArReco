@@ -65,9 +65,10 @@ int main(int argc, char *argv[])
         std::cerr << "Pandora StatusCodeException: " << statusCodeException.ToString() << statusCodeException.GetBackTrace() << std::endl;
         errorNo = 1;
     }
-    catch (const StopProcessingException &)
+    catch (const StopProcessingException &stopProcessingException)
     {
         // Exit gracefully
+        std::cout << stopProcessingException.GetDescription() << std::endl;
         errorNo = 0;
     }
     catch (...)
@@ -131,15 +132,15 @@ void LoadGeometry(const Parameters &inputParameters, const Pandora *const pPrima
     {
         PandoraApi::Geometry::LArTPC::Parameters parameters;
         parameters.m_larTPCVolumeId = 0;
-        parameters.m_centerX = 50.f;
-        parameters.m_centerY = 50.f;
-        parameters.m_centerZ = 50.f;
-        parameters.m_widthX = 100.f;
-        parameters.m_widthY = 100.f;
-        parameters.m_widthZ = 100.f;
-        parameters.m_wirePitchU = 0.466899991035f;
-        parameters.m_wirePitchV = 0.466899991035f;
-        parameters.m_wirePitchW = 0.479200005531f;
+        parameters.m_centerX = inputParameters.m_centerX;
+        parameters.m_centerY = inputParameters.m_centerY;
+        parameters.m_centerZ = inputParameters.m_centerZ;
+        parameters.m_widthX = inputParameters.m_widthX;
+        parameters.m_widthY = inputParameters.m_widthY;
+        parameters.m_widthZ = inputParameters.m_widthZ;
+        parameters.m_wirePitchU = inputParameters.m_wirePitchU;
+        parameters.m_wirePitchV = inputParameters.m_wirePitchV;
+        parameters.m_wirePitchW = inputParameters.m_wirePitchW;
         parameters.m_wireAngleU = inputParameters.m_wireAngleU;
         parameters.m_wireAngleV = inputParameters.m_wireAngleV;
         parameters.m_wireAngleW = inputParameters.m_wireAngleW;
@@ -172,6 +173,8 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
     if (nEvents - 1 >= pTChain->GetEntries())
         throw StopProcessingException("All event files processed");
 
+    ProtoHitVector protoHitVectorU, protoHitVectorV, protoHitVectorW;
+
     // ATTN : Geant4 is mm, Pandora cm
     for (int iHit = 0; iHit < cellEnergy->size(); ++iHit)
     {
@@ -181,80 +184,68 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
         const float u(YZtoU(localPosition.GetY(), localPosition.GetZ(), inputParameters));
         const float v(YZtoV(localPosition.GetY(), localPosition.GetZ(), inputParameters));
         const float w(localPosition.GetZ());
+        const float energy(cellEnergy->at(iHit));
+
+        ProtoHit protoHitU, protoHitV, protoHitW;
+
+        protoHitU.m_x = x;
+        protoHitU.m_z = u;
+        protoHitU.m_energy = energy;
+        protoHitU.m_hitType = pandora::TPC_VIEW_U;
+
+        protoHitV.m_x = x;
+        protoHitV.m_z = v;
+        protoHitV.m_energy = energy;
+        protoHitV.m_hitType = pandora::TPC_VIEW_V;
+
+        protoHitW.m_x = x;
+        protoHitW.m_z = w;
+        protoHitW.m_energy = energy;
+        protoHitW.m_hitType = pandora::TPC_VIEW_W;
+
+        protoHitVectorU.push_back(protoHitU);
+        protoHitVectorV.push_back(protoHitV);
+        protoHitVectorW.push_back(protoHitW);
+    }
+    DownsampleHits(inputParameters, protoHitVectorU);
+    DownsampleHits(inputParameters, protoHitVectorV);
+    DownsampleHits(inputParameters, protoHitVectorW);
+
+    ProtoHitVector protoHitVector;
+    protoHitVector.insert(protoHitVector.end(), protoHitVectorU.begin(), protoHitVectorU.end());
+    protoHitVector.insert(protoHitVector.end(), protoHitVectorV.begin(), protoHitVectorV.end());
+    protoHitVector.insert(protoHitVector.end(), protoHitVectorW.begin(), protoHitVectorW.end());
+
+    for (const ProtoHit &protoHit : protoHitVector)
+    {
         const float hitSize(0.5f);
 
         // Mainly dummy parameters
-        PandoraApi::CaloHit::Parameters parametersU;
-        parametersU.m_positionVector = pandora::CartesianVector(x, 0.f, u);
-        parametersU.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parametersU.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parametersU.m_cellGeometry = pandora::RECTANGULAR;
-        parametersU.m_cellSize0 = hitSize;
-        parametersU.m_cellSize1 = hitSize;
-        parametersU.m_cellThickness = hitSize;
-        parametersU.m_nCellRadiationLengths = 1.f;
-        parametersU.m_nCellInteractionLengths = 1.f;
-        parametersU.m_time = 0.f;
-        parametersU.m_inputEnergy = cellEnergy->at(iHit);
-        parametersU.m_mipEquivalentEnergy = 1.f;
-        parametersU.m_electromagneticEnergy = cellEnergy->at(iHit);
-        parametersU.m_hadronicEnergy = cellEnergy->at(iHit);
-        parametersU.m_isDigital = false;
-        parametersU.m_hitType = pandora::TPC_VIEW_U;
-        parametersU.m_hitRegion = pandora::SINGLE_REGION;
-        parametersU.m_layer = 0;
-        parametersU.m_isInOuterSamplingLayer = false;
-        parametersU.m_pParentAddress = nullptr;
-
-        PandoraApi::CaloHit::Parameters parametersV;
-        parametersV.m_positionVector = pandora::CartesianVector(x, 0.f, v);
-        parametersV.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parametersV.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parametersV.m_cellGeometry = pandora::RECTANGULAR;
-        parametersV.m_cellSize0 = hitSize;
-        parametersV.m_cellSize1 = hitSize;
-        parametersV.m_cellThickness = hitSize;
-        parametersV.m_nCellRadiationLengths = 1.f;
-        parametersV.m_nCellInteractionLengths = 1.f;
-        parametersV.m_time = 0.f;
-        parametersV.m_inputEnergy = cellEnergy->at(iHit);
-        parametersV.m_mipEquivalentEnergy = 1.f;
-        parametersV.m_electromagneticEnergy = cellEnergy->at(iHit);
-        parametersV.m_hadronicEnergy = cellEnergy->at(iHit);
-        parametersV.m_isDigital = false;
-        parametersV.m_hitType = pandora::TPC_VIEW_V;
-        parametersV.m_hitRegion = pandora::SINGLE_REGION;
-        parametersV.m_layer = 0;
-        parametersV.m_isInOuterSamplingLayer = false;
-        parametersV.m_pParentAddress = nullptr;
-
-        PandoraApi::CaloHit::Parameters parametersW;
-        parametersW.m_positionVector = pandora::CartesianVector(x, 0.f, w);
-        parametersW.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parametersW.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
-        parametersW.m_cellGeometry = pandora::RECTANGULAR;
-        parametersW.m_cellSize0 = hitSize;
-        parametersW.m_cellSize1 = hitSize;
-        parametersW.m_cellThickness = hitSize;
-        parametersW.m_nCellRadiationLengths = 1.f;
-        parametersW.m_nCellInteractionLengths = 1.f;
-        parametersW.m_time = 0.f;
-        parametersW.m_inputEnergy = cellEnergy->at(iHit);
-        parametersW.m_mipEquivalentEnergy = 1.f;
-        parametersW.m_electromagneticEnergy = cellEnergy->at(iHit);
-        parametersW.m_hadronicEnergy = cellEnergy->at(iHit);
-        parametersW.m_isDigital = false;
-        parametersW.m_hitType = pandora::TPC_VIEW_W;
-        parametersW.m_hitRegion = pandora::SINGLE_REGION;
-        parametersW.m_layer = 0;
-        parametersW.m_isInOuterSamplingLayer = false;
-        parametersW.m_pParentAddress = nullptr;
+        PandoraApi::CaloHit::Parameters parameters;
+        parameters.m_positionVector = pandora::CartesianVector(protoHit.m_x, 0.f, protoHit.m_z);
+        parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parameters.m_cellGeometry = pandora::RECTANGULAR;
+        parameters.m_cellSize0 = hitSize;
+        parameters.m_cellSize1 = hitSize;
+        parameters.m_cellThickness = hitSize;
+        parameters.m_nCellRadiationLengths = 1.f;
+        parameters.m_nCellInteractionLengths = 1.f;
+        parameters.m_time = 0.f;
+        parameters.m_inputEnergy = protoHit.m_energy;
+        parameters.m_mipEquivalentEnergy = 1.f;
+        parameters.m_electromagneticEnergy = protoHit.m_energy;
+        parameters.m_hadronicEnergy = protoHit.m_energy;
+        parameters.m_isDigital = false;
+        parameters.m_hitType = protoHit.m_hitType;
+        parameters.m_hitRegion = pandora::SINGLE_REGION;
+        parameters.m_layer = 0;
+        parameters.m_isInOuterSamplingLayer = false;
+        parameters.m_pParentAddress = nullptr;
 
         try
         {
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parametersU));
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parametersV));
-            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parametersW));
+            PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parameters));
         }
         catch (...)
         {
@@ -279,15 +270,100 @@ float YZtoV(const float y, const float z, const Parameters &parameters)
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
 
+void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitVector)
+{
+    bool isU(protoHitVector.front().m_hitType == TPC_VIEW_U);
+    bool isV(protoHitVector.front().m_hitType == TPC_VIEW_V);
+    bool isW(protoHitVector.front().m_hitType == TPC_VIEW_W);
+
+    if (!isU && !isV && !isW)
+        throw StopProcessingException("Unexpected hit type");
+
+    const float hitPitch(isU ? inputParameters.m_wirePitchU : isV ? inputParameters.m_wirePitchV : inputParameters.m_wirePitchW);
+
+    if (hitPitch < std::numeric_limits<float>::epsilon())
+        throw StopProcessingException("Unfeasibly pitch requested");
+
+    ProtoHitMap protoHitMap;
+
+    // ATTN : Begin by ordering wire number
+    for (ProtoHit &protoHit : protoHitVector)
+    {
+        if ((isU && protoHit.m_hitType != TPC_VIEW_U) || (isV && protoHit.m_hitType != TPC_VIEW_V) || (isW && protoHit.m_hitType != TPC_VIEW_W))
+            throw StopProcessingException("Multiple hit types");
+
+        protoHit.m_z = std::floor((protoHit.m_z + 0.5f * hitPitch) / hitPitch) * hitPitch;
+        protoHitMap.insert(ProtoHitMap::value_type(protoHitMap.size(), protoHit));
+    }
+
+    ProtoHit protoHit1, protoHit2;
+    std::sort(protoHitVector.begin(), protoHitVector.end(), SortProtoHits);
+
+    while (IdentifyMerge(inputParameters, protoHitVector, protoHit1, protoHit2))
+    {
+        ProtoHit mergedHit;
+
+        // ATTN : Merged hit on same wire
+        mergedHit.m_z = protoHit1.m_z;
+        // ATTN : Energy weighted mean drift position
+        mergedHit.m_x = (protoHit1.m_x * protoHit1.m_energy + protoHit2.m_x * protoHit2.m_energy)/(protoHit1.m_energy + protoHit2.m_energy);
+        mergedHit.m_energy = protoHit1.m_energy + protoHit2.m_energy;
+        mergedHit.m_hitType = protoHit1.m_hitType;
+
+        protoHitVector.erase(std::remove_if(protoHitVector.begin(), protoHitVector.end(), [](const ProtoHit &protoHit) -> bool{return protoHit.m_deleteHit;}), protoHitVector.end());
+        protoHitVector.push_back(mergedHit);
+        std::sort(protoHitVector.begin(), protoHitVector.end(), SortProtoHits);
+    }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
+
+bool IdentifyMerge(const Parameters &/*inputParameters*/, ProtoHitVector &protoHitVector, ProtoHit &protoHitA, ProtoHit &protoHitB)
+{
+    const float driftRes(0.5f);
+
+    for (int i = 0; i < protoHitVector.size() - 1; i++)
+    {
+        ProtoHit &protoHit1(protoHitVector.at(i));
+        ProtoHit &protoHit2(protoHitVector.at(i+1));
+
+        if (std::fabs(protoHit1.m_z - protoHit2.m_z) < std::numeric_limits<float>::epsilon() && (protoHit1.m_x - protoHit2.m_x < driftRes))
+        {
+            protoHit1.m_deleteHit = true;
+            protoHit2.m_deleteHit = true;
+            protoHitA = protoHit1;
+            protoHitB = protoHit2;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
+
+bool SortProtoHits(const ProtoHit &protoHit1, const ProtoHit &protoHit2)
+{
+    if (std::fabs(protoHit2.m_z - protoHit1.m_z) > std::numeric_limits<float>::epsilon())
+        return protoHit2.m_z > protoHit1.m_z;
+
+    if (std::fabs(protoHit2.m_x - protoHit1.m_x) > std::numeric_limits<float>::epsilon())
+        return protoHit2.m_x > protoHit1.m_x;
+
+    return protoHit2.m_energy > protoHit1.m_energy;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
+
 bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
 {
     if (1 == argc)
         return PrintOptions();
 
     int c(0);
-    std::string recoOption;
+    std::string recoOption, geometryFileName;
 
-    while ((c = getopt(argc, argv, "r:i:e:g:n:s:pNh")) != -1)
+    while ((c = getopt(argc, argv, "r:i:e:n:s:g:pNh")) != -1)
     {
         switch (c)
         {
@@ -306,14 +382,8 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
         case 's':
             parameters.m_nEventsToSkip = atoi(optarg);
             break;
-        case 'u':
-            parameters.m_wireAngleU = atof(optarg);
-            break;
-        case 'v':
-            parameters.m_wireAngleV = atof(optarg);
-            break;
-        case 'w':
-            parameters.m_wireAngleW = atof(optarg);
+        case 'g':
+            geometryFileName = optarg;
             break;
         case 'p':
             parameters.m_printOverallRecoStatus = true;
@@ -327,7 +397,50 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
         }
     }
 
+    TiXmlDocument *pTiXmlDocument = new TiXmlDocument();
+
+    if (!pTiXmlDocument->LoadFile(geometryFileName.c_str()))
+        throw StopProcessingException("Invalid geometry xml file");
+
+    const TiXmlHandle xmlDocumentHandle(pTiXmlDocument);
+    const TiXmlHandle *pXmlHandle = new TiXmlHandle(xmlDocumentHandle.FirstChildElement().Element());
+
+    try
+    {
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "CenterX", parameters.m_centerX));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "CenterY", parameters.m_centerY));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "CenterZ", parameters.m_centerZ));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WidthX", parameters.m_widthX));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WidthY", parameters.m_widthY));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WidthZ", parameters.m_widthZ));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WireAngleU", parameters.m_wireAngleU));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WireAngleV", parameters.m_wireAngleV));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WireAngleW", parameters.m_wireAngleW));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WirePitchU", parameters.m_wirePitchU));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WirePitchV", parameters.m_wirePitchV));
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, XmlHelper::ReadValue(*pXmlHandle, "WirePitchW", parameters.m_wirePitchW));
+    }
+    catch (...)
+    {
+        throw StopProcessingException("Unable to read geometry component");
+    }
+
     return ProcessRecoOption(recoOption, parameters);
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void LoadXmlElement(const TiXmlElement *pHeadTiXmlElement, float &value, const std::string &name)
+{
+    const char *attribute(pHeadTiXmlElement->Attribute(name.c_str()));
+
+    if (attribute)
+    {
+        value = atof(attribute);
+        return;
+    }
+
+    throw StopProcessingException("Missing geometry parameter " + name);
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------

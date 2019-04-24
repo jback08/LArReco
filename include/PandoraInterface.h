@@ -10,7 +10,7 @@
 
 #include "Pandora/PandoraInputTypes.h"
 
-namespace pandora {class Pandora;}
+namespace pandora {class Pandora; class TiXmlElement;}
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -46,13 +46,43 @@ public:
     float               m_wireAngleU;                   ///< Wire angle U
     float               m_wireAngleV;                   ///< Wire angle V
     float               m_wireAngleW;                   ///< Wire angle W
+    float               m_wirePitchU;                   ///< TPC wire pitch U
+    float               m_wirePitchV;                   ///< TPC wire pitch V
+    float               m_wirePitchW;                   ///< TPC wire pitch W
+    float               m_centerX;                      ///< TPC center x
+    float               m_centerY;                      ///< TPC center y
+    float               m_centerZ;                      ///< TPC center z
+    float               m_widthX;                       ///< TPC width x
+    float               m_widthY;                       ///< TPC width y
+    float               m_widthZ;                       ///< TPC width z
 
     pandora::InputInt   m_nEventsToSkip;                ///< The number of events to skip
 };
 
 /**
+ *  @brief  ProtoHit class
+ */
+class ProtoHit
+{
+public:
+    /**
+     *  @brief Default constructor
+     */
+    ProtoHit();
+
+    float               m_x;                            ///< Drift position
+    float               m_z;                            ///< Wire number
+    float               m_energy;                       ///< Energy
+    pandora::HitType    m_hitType;                      ///< Hit type
+    bool                m_deleteHit;                    ///< Has hit been merged and should original be deleted
+};
+
+typedef std::vector<ProtoHit> ProtoHitVector;
+typedef std::map<int, ProtoHit> ProtoHitMap;
+
+/**
  *  @brief  Create pandora instances
- * 
+ *
  *  @param  parameters the parameters
  *  @param  pPrimaryPandora to receive the address of the primary pandora instance
  */
@@ -84,6 +114,26 @@ void LoadGeometry(const Parameters &parameters, const pandora::Pandora *const pP
 void LoadHits(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents);
 
 /**
+ *  @brief  Downsample hits
+ *
+ *  @param  parameters the application parameters
+ *  @param  protoHitVector vector of protoHits
+ */
+void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitVector);
+
+/**
+ *  @brief  Search and return hits to merge
+ *
+ *  @param  parameters the application parameters
+ *  @param  protoHitVector vector of protoHits
+ *  @param  protoHit1 merge candidate one
+ *  @param  protoHit2 merge candidate two
+ *
+ *  @return is a merge is present
+ */
+bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVector, ProtoHit &protoHit1, ProtoHit &protoHit2);
+
+/**
  *  @brief  Convert the YZ position to a U
  *
  *  @param  y position
@@ -106,6 +156,16 @@ float YZtoU(const float y, const float z, const Parameters &parameters);
 float YZtoV(const float y, const float z, const Parameters &parameters);
 
 /**
+ *  @brief  Sort ProtoHits by position
+ *
+ *  @param  protoHit1 first hit
+ *  @param  protoHit2 second hit
+ *
+ *  @return is protoHit1 sorted above protoHit2
+ */
+bool SortProtoHits(const ProtoHit &protoHit1, const ProtoHit &protoHit2);
+
+/**
  *  @brief  Parse the command line arguments, setting the application parameters
  *
  *  @param  argc argument count
@@ -115,6 +175,15 @@ float YZtoV(const float y, const float z, const Parameters &parameters);
  *  @return success
  */
 bool ParseCommandLine(int argc, char *argv[], Parameters &parameters);
+
+/**
+ *  @brief  Load xml element
+ *
+ *  @param  pHeadTiXmlElement pointer to xml element
+ *  @param  value to set
+ *  @param  name of element
+ */
+void LoadXmlElement(const pandora::TiXmlElement *pHeadTiXmlElement, float &value, const std::string &name);
 
 /**
  *  @brief  Print the list of configurable options
@@ -159,7 +228,28 @@ inline Parameters::Parameters() :
     m_printOverallRecoStatus(false),
     m_wireAngleU(0.623204708099f),
     m_wireAngleV(-0.623204708099f),
-    m_wireAngleW(0.f)
+    m_wireAngleW(0.f),
+    m_wirePitchU(0.466899991035f),
+    m_wirePitchV(0.466899991035f),
+    m_wirePitchW(0.479200005531f),
+    m_centerX(50.f),
+    m_centerY(50.f),
+    m_centerZ(50.f),
+    m_widthX(100.f),
+    m_widthY(100.f),
+    m_widthZ(100.f)
+{
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+inline ProtoHit::ProtoHit() :
+    m_x(std::numeric_limits<float>::max()),
+    m_z(std::numeric_limits<float>::max()),
+    m_energy(std::numeric_limits<float>::max()),
+    m_hitType(pandora::TPC_3D),
+    m_deleteHit(false)
 {
 }
 
