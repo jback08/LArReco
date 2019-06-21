@@ -1,11 +1,11 @@
 <Geometry>
-    <CenterX>50</CenterX>
-    <CenterY>50</CenterY>
-    <CenterZ>50</CenterZ>
+    <CenterX>0</CenterX>
+    <CenterY>0</CenterY>
+    <CenterZ>0</CenterZ>
     <WidthX>100</WidthX>
     <WidthY>100</WidthY>
     <WidthZ>100</WidthZ>
-    <WirePitchU>4.466899991035</WirePitchU>
+    <WirePitchU>0.466899991035</WirePitchU>
     <WirePitchV>0.466899991035</WirePitchV>
     <WirePitchW>0.479200005531</WirePitchW>
     <WireAngleU>0.623204708099</WireAngleU>

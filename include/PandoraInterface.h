@@ -126,6 +126,14 @@ void LoadEvent(const Parameters &parameters, const pandora::Pandora *const pPrim
 void LoadCell(const Parameters &parameters, pandora::TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW);
 
 /**
+ *  @brief  Load mcparticle from xml file
+ *
+ *  @param  pTiXmlElement xml element
+ *  @param  pPrimaryPandora the address of the primary pandora instance
+ */
+void LoadMCParticle(pandora::TiXmlElement *pTiXmlElement, const pandora::Pandora *const pPrimaryPandora);
+
+/**
  *  @brief  Downsample hits
  *
  *  @param  parameters the application parameters

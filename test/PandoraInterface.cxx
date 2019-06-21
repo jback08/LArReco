@@ -119,26 +119,29 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
     if (!pTiXmlDocument->LoadFile(parameters.m_eventFileNameList.c_str()))
         std::cerr << pTiXmlDocument->ErrorDesc() << std::endl;
 
-    TiXmlElement *pTiXmlElement = pTiXmlDocument->FirstChildElement();
+    TiXmlElement *pRunTiXmlElement = pTiXmlDocument->FirstChildElement();
+    TiXmlElement *pEventTiXmlElement = pRunTiXmlElement->FirstChildElement();
 
     while ((nEvents++ < parameters.m_nEventsToProcess) || (0 > parameters.m_nEventsToProcess))
     {
-        if (!pTiXmlElement)
+        if (!pEventTiXmlElement)
         {
             pTiXmlDocument->Clear();
             delete pTiXmlDocument;
-            delete pTiXmlElement;
+            delete pRunTiXmlElement;
+            delete pEventTiXmlElement;
             break;
         }
 
         if (parameters.m_shouldDisplayEventNumber)
             std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
 
-        LoadEvent(parameters, pPrimaryPandora, pTiXmlElement);
+        LoadEvent(parameters, pPrimaryPandora, pEventTiXmlElement);
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
 
-        pTiXmlElement->NextSiblingElement();
+        pEventTiXmlElement->NextSiblingElement();
+        pEventTiXmlElement->NextSiblingElement();
     }
 }
 
@@ -177,6 +180,7 @@ void LoadGeometry(const Parameters &inputParameters, const Pandora *const pPrima
 void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const pPrimaryPandora, TiXmlElement *pTiXmlElement)
 {
     ProtoHitVector protoHitVectorU, protoHitVectorV, protoHitVectorW;
+
     for (TiXmlElement *pSubTiXmlElement = pTiXmlElement->FirstChildElement(); pSubTiXmlElement != NULL; pSubTiXmlElement = pSubTiXmlElement->NextSiblingElement())
     {
         const std::string componentName(pSubTiXmlElement->ValueStr());
@@ -185,10 +189,10 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
         {
             LoadCell(inputParameters, pSubTiXmlElement, protoHitVectorU, protoHitVectorV, protoHitVectorW);
         }
-//        else if (componentName == "MCParticle")
-//        {
-//            LoadMCParticle(pSubTiXmlElement)
-//        }
+        else if (componentName == "MCParticle")
+        {
+            LoadMCParticle(pSubTiXmlElement, pPrimaryPandora);
+        }
     }
 
     DownsampleHits(inputParameters, protoHitVectorU);
@@ -204,7 +208,6 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
     hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_U, inputParameters.m_wirePitchU));
     hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_V, inputParameters.m_wirePitchV));
     hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_W, inputParameters.m_wirePitchW));
-std::cout << "4" << std::endl;
 
     for (const ProtoHit &protoHit : protoHitVector)
     {
@@ -230,7 +233,6 @@ std::cout << "4" << std::endl;
         parameters.m_layer = 0;
         parameters.m_isInOuterSamplingLayer = false;
         parameters.m_pParentAddress = nullptr;
-std::cout << "5" << std::endl;
 
         try
         {
@@ -247,6 +249,7 @@ std::cout << "5" << std::endl;
 
 void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW)
 {
+    // ATTN : Geant4 mm, Pandora cm
     const float x(std::atof(pTiXmlElement->Attribute("X"))/10.f);
     const float y(std::atof(pTiXmlElement->Attribute("Y"))/10.f);
     const float z(std::atof(pTiXmlElement->Attribute("Z"))/10.f);
@@ -279,6 +282,36 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
     protoHitVectorW.push_back(protoHitW);
 
     return;
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------
+
+void LoadMCParticle(TiXmlElement *pTiXmlElement, const pandora::Pandora *const pPrimaryPandora)
+{
+    PandoraApi::MCParticle::Parameters parameters;
+
+    try
+    {
+        const float energy(std::atof(pTiXmlElement->Attribute("Energy")));
+        const CartesianVector momentum(std::atof(pTiXmlElement->Attribute("MomentumX")), std::atof(pTiXmlElement->Attribute("MomentumY")), std::atof(pTiXmlElement->Attribute("MomentumZ")));
+        const CartesianVector vertex(std::atof(pTiXmlElement->Attribute("StartX"))/10.f, std::atof(pTiXmlElement->Attribute("StartY"))/10.f, std::atof(pTiXmlElement->Attribute("StartZ"))/10.f);
+        const CartesianVector endpoint(std::atof(pTiXmlElement->Attribute("EndX"))/10.f, std::atof(pTiXmlElement->Attribute("EndY"))/10.f, std::atof(pTiXmlElement->Attribute("EndZ"))/10.f);
+        const int particleId(std::atoi(pTiXmlElement->Attribute("PDG")));
+        const MCParticleType mcParticleType(pandora::MC_3D);
+        const void *pParentAddress(nullptr);
+
+        parameters.m_energy = energy;
+        parameters.m_momentum = momentum;
+        parameters.m_vertex = vertex;
+        parameters.m_endpoint = endpoint;
+        parameters.m_particleId = particleId;
+        parameters.m_mcParticleType = mcParticleType;
+        parameters.m_pParentAddress = pParentAddress;
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, parameters));
+    }
+    catch (StatusCodeException &statusCodeException)
+    {
+    }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
