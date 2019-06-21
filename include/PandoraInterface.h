@@ -110,20 +110,20 @@ void LoadGeometry(const Parameters &parameters, const pandora::Pandora *const pP
  *
  *  @param  parameters the application parameters
  *  @param  pPrimaryPandora the address of the primary pandora instance
- *  @param  nEvents event number to load
  *  @param  pTiXmlElement xml element
  */
-void LoadEvent(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents, TiXmlElement *pTiXmlElement);
+void LoadEvent(const Parameters &parameters, const pandora::Pandora *const pPrimaryPandora, pandora::TiXmlElement *pTiXmlElement);
 
 /**
  *  @brief  Load hit from xml file
  *
+ *  @param  parameters the application parameters
  *  @param  pTiXmlElement xml element
  *  @param  protoHitVectorU U view proto hits
  *  @param  protoHitVectorV V view proto hits
  *  @param  protoHitVectorW W view proto hits
  */
-void LoadCell(TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW);
+void LoadCell(const Parameters &parameters, pandora::TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW);
 
 /**
  *  @brief  Downsample hits
