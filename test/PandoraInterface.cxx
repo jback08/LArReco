@@ -113,14 +113,31 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 {
     int nEvents(0);
 
+    // Load Input File
+    TiXmlDocument *pTiXmlDocument = new TiXmlDocument();
+
+    if (!pTiXmlDocument->LoadFile(inputParameters.m_eventFileNameList.c_str()))
+        std::cerr << pTiXmlDocument->ErrorDesc() << std::endl;
+
+    TiXmlElement *pTiXmlElement = pTiXmlDocument->FirstChildElement();
+
     while ((nEvents++ < parameters.m_nEventsToProcess) || (0 > parameters.m_nEventsToProcess))
     {
+        if (!pTiXmlElement)
+        {
+            pTiXmlDocument->Clear();
+            delete pTiXmlDocument, pTiXmlElement;
+            break;
+        }
+
         if (parameters.m_shouldDisplayEventNumber)
             std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
 
-        LoadHits(parameters, pPrimaryPandora, nEvents);
+        LoadEvent(parameters, pPrimaryPandora, nEvents, pTiXmlElement);
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+
+        pTiXmlElement->NextSiblingElement();
     }
 }
 
@@ -156,56 +173,22 @@ void LoadGeometry(const Parameters &inputParameters, const Pandora *const pPrima
 
 //------------------------------------------------------------------------------------------------------------------------------------------
 
-void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents)
+void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const pPrimaryPandora, const int nEvents, TiXmlElement *pTiXmlElement)
 {
-    TChain *pTChain = new TChain("G4TPC");
-    pTChain->Add(inputParameters.m_eventFileNameList.c_str());
-
-    std::vector<float> *cellX(nullptr), *cellY(nullptr), *cellZ(nullptr), *cellEnergy(nullptr);
-
-    pTChain->SetBranchAddress("CellX", &cellX);
-    pTChain->SetBranchAddress("CellY", &cellY);
-    pTChain->SetBranchAddress("CellZ", &cellZ);
-    pTChain->SetBranchAddress("CellEnergy", &cellEnergy);
-
-    pTChain->GetEntry(nEvents - 1);
-
-    if (nEvents - 1 >= pTChain->GetEntries())
-        throw StopProcessingException("All event files processed");
-
     ProtoHitVector protoHitVectorU, protoHitVectorV, protoHitVectorW;
 
-    // ATTN : Geant4 is mm, Pandora cm
-    for (int iHit = 0; iHit < cellEnergy->size(); ++iHit)
+    for (TiXmlElement *pSubTiXmlElement = pTiXmlElement->FirstChildElement(); pSubTiXmlElement != NULL; pSubTiXmlElement = pSubTiXmlElement->NextSiblingElement())
     {
-        const pandora::CartesianVector localPosition(cellX->at(iHit)/10.f, cellY->at(iHit)/10.f, cellZ->at(iHit)/10.f);
+        const std::string componentName(pSubTiXmlElement->ValueStr());
 
-        const float x(localPosition.GetX());
-        const float u(YZtoU(localPosition.GetY(), localPosition.GetZ(), inputParameters));
-        const float v(YZtoV(localPosition.GetY(), localPosition.GetZ(), inputParameters));
-        const float w(localPosition.GetZ());
-        const float energy(cellEnergy->at(iHit));
-
-        ProtoHit protoHitU, protoHitV, protoHitW;
-
-        protoHitU.m_x = x;
-        protoHitU.m_z = u;
-        protoHitU.m_energy = energy;
-        protoHitU.m_hitType = pandora::TPC_VIEW_U;
-
-        protoHitV.m_x = x;
-        protoHitV.m_z = v;
-        protoHitV.m_energy = energy;
-        protoHitV.m_hitType = pandora::TPC_VIEW_V;
-
-        protoHitW.m_x = x;
-        protoHitW.m_z = w;
-        protoHitW.m_energy = energy;
-        protoHitW.m_hitType = pandora::TPC_VIEW_W;
-
-        protoHitVectorU.push_back(protoHitU);
-        protoHitVectorV.push_back(protoHitV);
-        protoHitVectorW.push_back(protoHitW);
+        if (componentName == "Cell")
+        {
+            this->LoadCell(pSubTiXmlElement, protoHitVectorU, protoHitVectorV, protoHitVectorW);
+        }
+//        else if (componentName == "MCParticle")
+//        {
+//            this->LoadMCParticle(pSubTiXmlElement)
+//        }
     }
 
     DownsampleHits(inputParameters, protoHitVectorU);
@@ -227,7 +210,7 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
         // Mainly dummy parameters
         PandoraApi::CaloHit::Parameters parameters;
         parameters.m_positionVector = pandora::CartesianVector(protoHit.m_x, 0.f, protoHit.m_z);
-        parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+        parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f); 
         parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
         parameters.m_cellGeometry = pandora::RECTANGULAR;
         parameters.m_cellSize0 = 0.5f;
@@ -256,6 +239,44 @@ void LoadHits(const Parameters &inputParameters, const pandora::Pandora *const p
             std::cout << "Unable to make hits" << std::endl;
         }
     }
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
+
+void LoadCell(TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW)
+{
+    const float x(pTiXmlElement->Attribute("X")/10.f);
+    const float y(pTiXmlElement->Attribute("Y")/10.f);
+    const float z(pTiXmlElement->Attribute("Z")/10.f);
+    const pandora::CartesianVector localPosition(x,y,z);
+
+    const float u(YZtoU(localPosition.GetY(), localPosition.GetZ(), inputParameters));
+    const float v(YZtoV(localPosition.GetY(), localPosition.GetZ(), inputParameters));
+    const float w(localPosition.GetZ());
+    const float energy(pTiXmlElement->Attribute("Energy");
+
+    ProtoHit protoHitU, protoHitV, protoHitW;
+
+    protoHitU.m_x = x;
+    protoHitU.m_z = u;
+    protoHitU.m_energy = energy;
+    protoHitU.m_hitType = pandora::TPC_VIEW_U;
+
+    protoHitV.m_x = x;
+    protoHitV.m_z = v;
+    protoHitV.m_energy = energy;
+    protoHitV.m_hitType = pandora::TPC_VIEW_V;
+
+    protoHitW.m_x = x;
+    protoHitW.m_z = w;
+    protoHitW.m_energy = energy;
+    protoHitW.m_hitType = pandora::TPC_VIEW_W;
+
+    protoHitVectorU.push_back(protoHitU);
+    protoHitVectorV.push_back(protoHitV);
+    protoHitVectorW.push_back(protoHitW);
+
+    return;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------
