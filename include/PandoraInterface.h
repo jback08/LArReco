@@ -76,10 +76,13 @@ public:
     float               m_energy;                       ///< Energy
     pandora::HitType    m_hitType;                      ///< Hit type
     bool                m_deleteHit;                    ///< Has hit been merged and should original be deleted
+    int                 m_id;                           ///< Hit id
+    int                 m_mcId;                         ///< Track id of MC particle depositing most energy
 };
 
 typedef std::vector<ProtoHit> ProtoHitVector;
 typedef std::map<pandora::HitType, float> HitTypeToFloatMap;
+typedef std::map<int, int> IntIntMap;
 
 /**
  *  @brief  Create pandora instances
@@ -130,11 +133,13 @@ void LoadCell(const Parameters &parameters, pandora::TiXmlElement *pTiXmlElement
  *
  *  @param  pTiXmlElement xml element
  *  @param  pPrimaryPandora the address of the primary pandora instance
+ *  @param  trackParentId map of track id to parent track id
  */
-void LoadMCParticle(pandora::TiXmlElement *pTiXmlElement, const pandora::Pandora *const pPrimaryPandora);
+void LoadMCParticle(pandora::TiXmlElement *pTiXmlElement, const pandora::Pandora *const pPrimaryPandora, IntIntMap &trackParentId);
 
 /**
- *  @brief  Downsample hits
+ *              std::cout << "Unable to make hits" << std::endl;
+ *              @brief  Downsample hits
  *
  *  @param  parameters the application parameters
  *  @param  protoHitVector vector of protoHits
@@ -169,7 +174,8 @@ float YZtoU(const float y, const float z, const Parameters &parameters);
  *
  *  @param  y position
  *  @param  z position
- *  @param  parameters the application parameters
+ *  @param  paratd::cout << "Unable to make hits" << std::endl;
+ *  eters the application parameters
  *
  *  @return the v position
  */
@@ -270,7 +276,9 @@ inline ProtoHit::ProtoHit() :
     m_z(std::numeric_limits<float>::max()),
     m_energy(std::numeric_limits<float>::max()),
     m_hitType(pandora::TPC_3D),
-    m_deleteHit(false)
+    m_deleteHit(false),
+    m_id(std::numeric_limits<int>::max()),
+    m_mcId(std::numeric_limits<int>::max())
 {
 }
 
