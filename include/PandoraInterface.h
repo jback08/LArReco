@@ -123,7 +123,7 @@ void LoadEvent(const Parameters &parameters, const pandora::Pandora *const pPrim
  *  @param  protoHitVectorV V view proto hits
  *  @param  protoHitVectorW W view proto hits
  */
-void LoadCell(const Parameters &parameters, pandora::TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW, const pandora::Pandora *const pPrimaryPandora);
+void LoadCell(const Parameters &parameters, pandora::TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW);
 
 /**
  *  @brief  Load mcparticle from xml file

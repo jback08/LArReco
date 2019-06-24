@@ -189,7 +189,7 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
 
         if (componentName == "Cell")
         {
-            LoadCell(inputParameters, pSubTiXmlElement, protoHitVectorU, protoHitVectorV, protoHitVectorW, pPrimaryPandora);
+            LoadCell(inputParameters, pSubTiXmlElement, protoHitVectorU, protoHitVectorV, protoHitVectorW);
         }
         else if (componentName == "MCParticle")
         {
@@ -250,7 +250,7 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
 
-void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW, const pandora::Pandora *const pPrimaryPandora)
+void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW)
 {
     // ATTN : Geant4 mm, Pandora cm
     const float x(std::atof(pTiXmlElement->Attribute("X"))/10.f);
@@ -283,38 +283,6 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
     protoHitVectorU.push_back(protoHitU);
     protoHitVectorV.push_back(protoHitV);
     protoHitVectorW.push_back(protoHitW);
-
-    lar_content::LArCaloHitParameters parameters;
-    parameters.m_positionVector = pandora::CartesianVector(x, y, z);
-    parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
-    parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
-    parameters.m_cellGeometry = pandora::RECTANGULAR;
-    parameters.m_cellSize0 = 0.5f;
-    parameters.m_cellSize1 = 0.5f;
-    parameters.m_cellThickness = 0.5f;
-    parameters.m_nCellRadiationLengths = 1.f;
-    parameters.m_nCellInteractionLengths = 1.f;
-    parameters.m_time = 0.f;
-    parameters.m_inputEnergy = energy;
-    parameters.m_mipEquivalentEnergy = 1.f;
-    parameters.m_electromagneticEnergy = energy;
-    parameters.m_hadronicEnergy = energy;
-    parameters.m_isDigital = false;
-    parameters.m_hitType = pandora::TPC_3D;
-    parameters.m_hitRegion = pandora::SINGLE_REGION;
-    parameters.m_layer = 0;
-    parameters.m_isInOuterSamplingLayer = false;
-    parameters.m_pParentAddress = nullptr;
-    parameters.m_larTPCVolumeId = 0;
-
-    try
-    {
-        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parameters));
-    }
-    catch (...)
-    {
-        std::cout << "Unable to make hits" << std::endl;
-    }
 
     return;
 }
