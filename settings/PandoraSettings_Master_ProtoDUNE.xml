@@ -14,7 +14,7 @@
         <CurrentCaloHitListReplacement>CaloHitList2D</CurrentCaloHitListReplacement>
     </algorithm>
     <algorithm type = "LArVisualMonitoring">
-        <CaloHitListNames>CaloHitListU CaloHitListV CaloHitListW</CaloHitListNames>
+        <CaloHitListNames>CaloHitListU CaloHitListV CaloHitListW Input</CaloHitListNames>
         <MCParticleListNames>Input</MCParticleListNames>
         <ShowDetector>true</ShowDetector>
     </algorithm>

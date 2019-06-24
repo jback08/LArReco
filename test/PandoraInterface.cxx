@@ -14,6 +14,8 @@
 #include "larpandoracontent/LArControlFlow/MasterAlgorithm.h"
 #include "larpandoracontent/LArControlFlow/MultiPandoraApi.h"
 #include "larpandoracontent/LArHelpers/LArPfoHelper.h"
+#include "larpandoracontent/LArObjects/LArCaloHit.h"
+#include "larpandoracontent/LArObjects/LArMCParticle.h"
 #include "larpandoracontent/LArPersistency/EventReadingAlgorithm.h"
 #include "larpandoracontent/LArPlugins/LArPseudoLayerPlugin.h"
 #include "larpandoracontent/LArPlugins/LArRotationalTransformationPlugin.h"
@@ -187,7 +189,7 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
 
         if (componentName == "Cell")
         {
-            LoadCell(inputParameters, pSubTiXmlElement, protoHitVectorU, protoHitVectorV, protoHitVectorW);
+            LoadCell(inputParameters, pSubTiXmlElement, protoHitVectorU, protoHitVectorV, protoHitVectorW, pPrimaryPandora);
         }
         else if (componentName == "MCParticle")
         {
@@ -212,7 +214,7 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
     for (const ProtoHit &protoHit : protoHitVector)
     {
         // Mainly dummy parameters
-        PandoraApi::CaloHit::Parameters parameters;
+        lar_content::LArCaloHitParameters parameters;
         parameters.m_positionVector = pandora::CartesianVector(protoHit.m_x, 0.f, protoHit.m_z);
         parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f); 
         parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
@@ -233,6 +235,7 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
         parameters.m_layer = 0;
         parameters.m_isInOuterSamplingLayer = false;
         parameters.m_pParentAddress = nullptr;
+        parameters.m_larTPCVolumeId = 0;
 
         try
         {
@@ -247,7 +250,7 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
 
-void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW)
+void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, ProtoHitVector &protoHitVectorU, ProtoHitVector &protoHitVectorV, ProtoHitVector &protoHitVectorW, const pandora::Pandora *const pPrimaryPandora)
 {
     // ATTN : Geant4 mm, Pandora cm
     const float x(std::atof(pTiXmlElement->Attribute("X"))/10.f);
@@ -281,6 +284,38 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
     protoHitVectorV.push_back(protoHitV);
     protoHitVectorW.push_back(protoHitW);
 
+    lar_content::LArCaloHitParameters parameters;
+    parameters.m_positionVector = pandora::CartesianVector(x, y, z);
+    parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f);
+    parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
+    parameters.m_cellGeometry = pandora::RECTANGULAR;
+    parameters.m_cellSize0 = 0.5f;
+    parameters.m_cellSize1 = 0.5f;
+    parameters.m_cellThickness = 0.5f;
+    parameters.m_nCellRadiationLengths = 1.f;
+    parameters.m_nCellInteractionLengths = 1.f;
+    parameters.m_time = 0.f;
+    parameters.m_inputEnergy = energy;
+    parameters.m_mipEquivalentEnergy = 1.f;
+    parameters.m_electromagneticEnergy = energy;
+    parameters.m_hadronicEnergy = energy;
+    parameters.m_isDigital = false;
+    parameters.m_hitType = pandora::TPC_3D;
+    parameters.m_hitRegion = pandora::SINGLE_REGION;
+    parameters.m_layer = 0;
+    parameters.m_isInOuterSamplingLayer = false;
+    parameters.m_pParentAddress = nullptr;
+    parameters.m_larTPCVolumeId = 0;
+
+    try
+    {
+        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*pPrimaryPandora, parameters));
+    }
+    catch (...)
+    {
+        std::cout << "Unable to make hits" << std::endl;
+    }
+
     return;
 }
 
@@ -288,7 +323,8 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
 
 void LoadMCParticle(TiXmlElement *pTiXmlElement, const pandora::Pandora *const pPrimaryPandora)
 {
-    PandoraApi::MCParticle::Parameters parameters;
+    lar_content::LArMCParticleFactory mcParticleFactory;
+    lar_content::LArMCParticleParameters parameters;
 
     try
     {
@@ -296,18 +332,20 @@ void LoadMCParticle(TiXmlElement *pTiXmlElement, const pandora::Pandora *const p
         const CartesianVector momentum(std::atof(pTiXmlElement->Attribute("MomentumX")), std::atof(pTiXmlElement->Attribute("MomentumY")), std::atof(pTiXmlElement->Attribute("MomentumZ")));
         const CartesianVector vertex(std::atof(pTiXmlElement->Attribute("StartX"))/10.f, std::atof(pTiXmlElement->Attribute("StartY"))/10.f, std::atof(pTiXmlElement->Attribute("StartZ"))/10.f);
         const CartesianVector endpoint(std::atof(pTiXmlElement->Attribute("EndX"))/10.f, std::atof(pTiXmlElement->Attribute("EndY"))/10.f, std::atof(pTiXmlElement->Attribute("EndZ"))/10.f);
-        const int particleId(std::atoi(pTiXmlElement->Attribute("PDG")));
+        const int particlePDG(std::atoi(pTiXmlElement->Attribute("PDG")));
+        const int particleId(std::atoi(pTiXmlElement->Attribute("Id")));
         const MCParticleType mcParticleType(pandora::MC_3D);
-        const void *pParentAddress(nullptr);
 
+        parameters.m_nuanceCode = 2001;
         parameters.m_energy = energy;
         parameters.m_momentum = momentum;
         parameters.m_vertex = vertex;
         parameters.m_endpoint = endpoint;
-        parameters.m_particleId = particleId;
+        parameters.m_particleId = particlePDG;
         parameters.m_mcParticleType = mcParticleType;
-        parameters.m_pParentAddress = pParentAddress;
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, parameters));
+        parameters.m_pParentAddress = (void*)((intptr_t)particleId);
+
+        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*pPrimaryPandora, parameters, mcParticleFactory));
     }
     catch (StatusCodeException &statusCodeException)
     {
@@ -382,7 +420,7 @@ bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVe
         ProtoHit &protoHit1(protoHitVector.at(i));
         ProtoHit &protoHit2(protoHitVector.at(i+1));
 
-        if (std::fabs(protoHit1.m_z - protoHit2.m_z) < std::numeric_limits<float>::epsilon() && (protoHit1.m_x - protoHit2.m_x < inputParameters.m_hitWidth))
+        if (std::fabs(protoHit1.m_z - protoHit2.m_z) < std::numeric_limits<float>::epsilon() && (std::fabs(protoHit1.m_x - protoHit2.m_x) < inputParameters.m_hitWidth))
         {
             protoHit1.m_deleteHit = true;
             protoHit2.m_deleteHit = true;
