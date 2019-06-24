@@ -126,12 +126,10 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 
     while ((nEvents++ < parameters.m_nEventsToProcess) || (0 > parameters.m_nEventsToProcess))
     {
-        if (!pEventTiXmlElement)
+        if (pEventTiXmlElement == 0)
         {
             pTiXmlDocument->Clear();
             delete pTiXmlDocument;
-            delete pRunTiXmlElement;
-            delete pEventTiXmlElement;
             break;
         }
 
@@ -142,8 +140,7 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
         PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
 
-        pEventTiXmlElement->NextSiblingElement();
-        pEventTiXmlElement->NextSiblingElement();
+        pEventTiXmlElement = pEventTiXmlElement->NextSiblingElement();
     }
 }
 
