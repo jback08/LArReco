@@ -115,32 +115,39 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
 {
     int nEvents(0);
 
-    // Load Input File
-    TiXmlDocument *pTiXmlDocument = new TiXmlDocument();
+    pandora::StringVector eventFileNameVector;
+    XmlHelper::TokenizeString(parameters.m_eventFileNameList, eventFileNameVector, ":");
 
-    if (!pTiXmlDocument->LoadFile(parameters.m_eventFileNameList.c_str()))
-        std::cerr << pTiXmlDocument->ErrorDesc() << std::endl;
-
-    TiXmlElement *pRunTiXmlElement = pTiXmlDocument->FirstChildElement();
-    TiXmlElement *pEventTiXmlElement = pRunTiXmlElement->FirstChildElement();
-
-    while ((nEvents++ < parameters.m_nEventsToProcess) || (0 > parameters.m_nEventsToProcess))
+    for (const std::string fileName : eventFileNameVector)
     {
-        if (pEventTiXmlElement == 0)
+        std::cout << std::endl << "PROCESSING FILE: " << fileName << std::endl;
+        // Load Input File
+        TiXmlDocument *pTiXmlDocument = new TiXmlDocument();
+
+        if (!pTiXmlDocument->LoadFile(fileName.c_str()))
+            std::cerr << pTiXmlDocument->ErrorDesc() << std::endl;
+
+        TiXmlElement *pRunTiXmlElement = pTiXmlDocument->FirstChildElement();
+        TiXmlElement *pEventTiXmlElement = pRunTiXmlElement->FirstChildElement();
+
+        while ((nEvents++ < parameters.m_nEventsToProcess) || (0 > parameters.m_nEventsToProcess))
         {
-            pTiXmlDocument->Clear();
-            delete pTiXmlDocument;
-            break;
+            if (pEventTiXmlElement == 0)
+            {
+                pTiXmlDocument->Clear();
+                delete pTiXmlDocument;
+                break;
+            }
+
+            if (parameters.m_shouldDisplayEventNumber)
+                std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
+
+            LoadEvent(parameters, pPrimaryPandora, pEventTiXmlElement);
+            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
+            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+
+            pEventTiXmlElement = pEventTiXmlElement->NextSiblingElement();
         }
-
-        if (parameters.m_shouldDisplayEventNumber)
-            std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
-
-        LoadEvent(parameters, pPrimaryPandora, pEventTiXmlElement);
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
-        PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
-
-        pEventTiXmlElement = pEventTiXmlElement->NextSiblingElement();
     }
 }
 
