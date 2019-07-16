@@ -33,6 +33,7 @@ public:
 
     int                 m_nEventsToProcess;             ///< The number of events to process (default all events in file)
     bool                m_shouldDisplayEventNumber;     ///< Whether event numbers should be displayed (default false)
+    bool                m_dualPhaseMode;                ///< Whether in dual phase mode (if yes drop v)
 
     bool                m_shouldRunAllHitsCosmicReco;   ///< Whether to run all hits cosmic-ray reconstruction
     bool                m_shouldRunStitching;           ///< Whether to stitch cosmic-ray muons crossing between volumes
@@ -244,6 +245,7 @@ inline Parameters::Parameters() :
     m_eventFileNameList(""),
     m_nEventsToProcess(-1),
     m_shouldDisplayEventNumber(false),
+    m_dualPhaseMode(false),
     m_shouldRunAllHitsCosmicReco(true),
     m_shouldRunStitching(true),
     m_shouldRunCosmicHitRemoval(true),

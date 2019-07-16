@@ -228,8 +228,10 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
 
     ProtoHitVector protoHitVector;
     protoHitVector.insert(protoHitVector.end(), protoHitVectorU.begin(), protoHitVectorU.end());
-    protoHitVector.insert(protoHitVector.end(), protoHitVectorV.begin(), protoHitVectorV.end());
     protoHitVector.insert(protoHitVector.end(), protoHitVectorW.begin(), protoHitVectorW.end());
+
+    if (!inputParameters.m_dualPhaseMode)
+        protoHitVector.insert(protoHitVector.end(), protoHitVectorV.begin(), protoHitVectorV.end());
 
     HitTypeToFloatMap hitTypeToThickness;
     hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_U, inputParameters.m_wirePitchU));
@@ -472,7 +474,7 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
     int c(0);
     std::string recoOption, geometryFileName;
 
-    while ((c = getopt(argc, argv, "r:i:e:n:s:g:pNh")) != -1)
+    while ((c = getopt(argc, argv, "r:i:e:n:s:g:pNDh")) != -1)
     {
         switch (c)
         {
@@ -499,6 +501,9 @@ bool ParseCommandLine(int argc, char *argv[], Parameters &parameters)
             break;
         case 'N':
             parameters.m_shouldDisplayEventNumber = true;
+            break;
+        case 'D':
+            parameters.m_dualPhaseMode = true;
             break;
         case 'h':
         default:
@@ -567,7 +572,8 @@ bool PrintOptions()
               << "    -v WireAngleV          (optional) [wire angle v, ProtoDUNE assumed]" << std::endl
               << "    -w WireAngleW          (optional) [wire angle w, ProtoDUNE assumed]" << std::endl
               << "    -p                     (optional) [print status]" << std::endl
-              << "    -N                     (optional) [print event numbers]" << std::endl << std::endl;
+              << "    -N                     (optional) [print event numbers]" << std::endl
+              << "    -D                     (optional) [run dual phase, drop v]" << std::endl << std::endl;
 
     return false;
 }
