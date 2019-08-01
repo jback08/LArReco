@@ -222,9 +222,14 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
         }
     }
 
-    DownsampleHits(inputParameters, protoHitVectorU);
-    DownsampleHits(inputParameters, protoHitVectorV);
-    DownsampleHits(inputParameters, protoHitVectorW);
+    if (!protoHitVectorU.empty())
+        DownsampleHits(inputParameters, protoHitVectorU);
+
+    if (!protoHitVectorV.empty())
+        DownsampleHits(inputParameters, protoHitVectorV);
+
+    if (!protoHitVectorW.empty())
+        DownsampleHits(inputParameters, protoHitVectorW);
 
     ProtoHitVector protoHitVector;
     protoHitVector.insert(protoHitVector.end(), protoHitVectorU.begin(), protoHitVectorU.end());
