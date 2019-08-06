@@ -289,6 +289,10 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
                 std::cout << "Unable to make MCParticle - Hit relationships" << std::endl;
             }
         }
+        else
+        {
+            std::cout << "Missing MC particle link to hit" << std::endl;
+        }
     }
 }
 
@@ -430,6 +434,8 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
         mergedHit.m_x = (protoHit1.m_x * protoHit1.m_energy + protoHit2.m_x * protoHit2.m_energy)/(protoHit1.m_energy + protoHit2.m_energy);
         mergedHit.m_energy = protoHit1.m_energy + protoHit2.m_energy;
         mergedHit.m_hitType = protoHit1.m_hitType;
+        mergedHit.m_id = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_id : protoHit2.m_id);
+        mergedHit.m_mcId = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_mcId : protoHit2.m_mcId);
 
         protoHitVector.erase(std::remove_if(protoHitVector.begin(), protoHitVector.end(), [](const ProtoHit &protoHit) -> bool{return protoHit.m_deleteHit;}), protoHitVector.end());
         protoHitVector.push_back(mergedHit);
