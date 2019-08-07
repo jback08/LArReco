@@ -245,6 +245,9 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
 
     for (const ProtoHit &protoHit : protoHitVector)
     {
+        if (protoHit.m_energy < inputParameters.m_hitEnergyThreshold)
+            continue;
+
         // Mainly dummy parameters
         lar_content::LArCaloHitParameters parameters;
         parameters.m_positionVector = pandora::CartesianVector(protoHit.m_x, 0.f, protoHit.m_z);
@@ -312,9 +315,6 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
     const float energy(std::atof(pTiXmlElement->Attribute("Energy")));
     const int id(std::atoi(pTiXmlElement->Attribute("Id")));
     const int mcId(std::atoi(pTiXmlElement->Attribute("MCId")));
-
-    if (energy < inputParameters.m_hitEnergyThreshold)
-        return;
 
     ProtoHit protoHitU, protoHitV, protoHitW;
 
@@ -590,7 +590,8 @@ bool PrintOptions()
               << "    -w WireAngleW          (optional) [wire angle w, ProtoDUNE assumed]" << std::endl
               << "    -p                     (optional) [print status]" << std::endl
               << "    -N                     (optional) [print event numbers]" << std::endl
-              << "    -D                     (optional) [run dual phase, drop v]" << std::endl << std::endl;
+              << "    -D                     (optional) [run dual phase, drop v]" << std::endl
+              << "    -T threshold           (optional) [hit energy threshold]" << std::endl << std::endl;
 
     return false;
 }
