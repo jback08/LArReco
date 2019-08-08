@@ -77,12 +77,11 @@ public:
     float               m_z;                            ///< Wire number
     float               m_energy;                       ///< Energy
     pandora::HitType    m_hitType;                      ///< Hit type
-    bool                m_deleteHit;                    ///< Has hit been merged and should original be deleted
     int                 m_id;                           ///< Hit id
     int                 m_mcId;                         ///< Track id of MC particle depositing most energy
 };
 
-typedef std::vector<ProtoHit> ProtoHitVector;
+typedef std::vector<ProtoHit*> ProtoHitVector;
 typedef std::map<pandora::HitType, float> HitTypeToFloatMap;
 typedef std::map<int, int> IntIntMap;
 
@@ -140,8 +139,7 @@ void LoadCell(const Parameters &parameters, pandora::TiXmlElement *pTiXmlElement
 void LoadMCParticle(pandora::TiXmlElement *pTiXmlElement, const pandora::Pandora *const pPrimaryPandora, IntIntMap &trackParentId);
 
 /**
- *              std::cout << "Unable to make hits" << std::endl;
- *              @brief  Downsample hits
+ *  @brief  Downsample hits
  *
  *  @param  parameters the application parameters
  *  @param  protoHitVector vector of protoHits
@@ -153,12 +151,12 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
  *
  *  @param  parameters the application parameters
  *  @param  protoHitVector vector of protoHits
- *  @param  protoHit1 merge candidate one
- *  @param  protoHit2 merge candidate two
+ *  @param  pProtoHit1 merge candidate one
+ *  @param  pProtoHit2 merge candidate two
  *
  *  @return is a merge is present
  */
-bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVector, ProtoHit &protoHit1, ProtoHit &protoHit2);
+bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVector, ProtoHit *&pProtoHit1, ProtoHit *&pProtoHit2);
 
 /**
  *  @brief  Convert the YZ position to a U
@@ -186,12 +184,12 @@ float YZtoV(const float y, const float z, const Parameters &parameters);
 /**
  *  @brief  Sort ProtoHits by position
  *
- *  @param  protoHit1 first hit
- *  @param  protoHit2 second hit
+ *  @param  pProtoHit1 first hit
+ *  @param  pProtoHit2 second hit
  *
- *  @return is protoHit1 sorted above protoHit2
+ *  @return is pProtoHit1 sorted above pProtoHit2
  */
-bool SortProtoHits(const ProtoHit &protoHit1, const ProtoHit &protoHit2);
+bool SortProtoHits(const ProtoHit *pProtoHit1, const ProtoHit *pProtoHit2);
 
 /**
  *  @brief  Parse the command line arguments, setting the application parameters
@@ -280,7 +278,6 @@ inline ProtoHit::ProtoHit() :
     m_z(std::numeric_limits<float>::max()),
     m_energy(std::numeric_limits<float>::max()),
     m_hitType(pandora::TPC_3D),
-    m_deleteHit(false),
     m_id(std::numeric_limits<int>::max()),
     m_mcId(std::numeric_limits<int>::max())
 {

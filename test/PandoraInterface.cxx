@@ -243,33 +243,33 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
     hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_V, inputParameters.m_wirePitchV));
     hitTypeToThickness.insert(HitTypeToFloatMap::value_type(pandora::TPC_VIEW_W, inputParameters.m_wirePitchW));
 
-    for (const ProtoHit &protoHit : protoHitVector)
+    for (const ProtoHit *pProtoHit : protoHitVector)
     {
-        if (protoHit.m_energy < inputParameters.m_hitEnergyThreshold)
+        if (pProtoHit->m_energy < inputParameters.m_hitEnergyThreshold)
             continue;
 
         // Mainly dummy parameters
         lar_content::LArCaloHitParameters parameters;
-        parameters.m_positionVector = pandora::CartesianVector(protoHit.m_x, 0.f, protoHit.m_z);
+        parameters.m_positionVector = pandora::CartesianVector(pProtoHit->m_x, 0.f, pProtoHit->m_z);
         parameters.m_expectedDirection = pandora::CartesianVector(0.f, 0.f, 1.f); 
         parameters.m_cellNormalVector = pandora::CartesianVector(0.f, 0.f, 1.f);
         parameters.m_cellGeometry = pandora::RECTANGULAR;
         parameters.m_cellSize0 = 0.5f;
         parameters.m_cellSize1 = inputParameters.m_hitWidth;
-        parameters.m_cellThickness = hitTypeToThickness.at(protoHit.m_hitType);
+        parameters.m_cellThickness = hitTypeToThickness.at(pProtoHit->m_hitType);
         parameters.m_nCellRadiationLengths = 1.f;
         parameters.m_nCellInteractionLengths = 1.f;
         parameters.m_time = 0.f;
-        parameters.m_inputEnergy = protoHit.m_energy;
+        parameters.m_inputEnergy = pProtoHit->m_energy;
         parameters.m_mipEquivalentEnergy = 1.f;
-        parameters.m_electromagneticEnergy = protoHit.m_energy;
-        parameters.m_hadronicEnergy = protoHit.m_energy;
+        parameters.m_electromagneticEnergy = pProtoHit->m_energy;
+        parameters.m_hadronicEnergy = pProtoHit->m_energy;
         parameters.m_isDigital = false;
-        parameters.m_hitType = protoHit.m_hitType;
+        parameters.m_hitType = pProtoHit->m_hitType;
         parameters.m_hitRegion = pandora::SINGLE_REGION;
         parameters.m_layer = 0;
         parameters.m_isInOuterSamplingLayer = false;
-        parameters.m_pParentAddress = (void*)((intptr_t)(protoHit.m_id));;
+        parameters.m_pParentAddress = (void*)((intptr_t)(pProtoHit->m_id));;
         parameters.m_larTPCVolumeId = 0;
 
         try
@@ -281,11 +281,11 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
             std::cout << "Unable to make hits" << std::endl;
         }
 
-        if (trackParentId.find(protoHit.m_mcId) != trackParentId.end())
+        if (trackParentId.find(pProtoHit->m_mcId) != trackParentId.end())
         {
             try
             {
-                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void*)((intptr_t)protoHit.m_id), (void*)((intptr_t)protoHit.m_mcId), 1.f));
+                PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetCaloHitToMCParticleRelationship(*pPrimaryPandora, (void*)((intptr_t)pProtoHit->m_id), (void*)((intptr_t)pProtoHit->m_mcId), 1.f));
             }
             catch (...)
             {
@@ -297,6 +297,9 @@ void LoadEvent(const Parameters &inputParameters, const pandora::Pandora *const 
             std::cout << "Missing MC particle link to hit" << std::endl;
         }
     }
+
+    for (const ProtoHit *pProtoHit : protoHitVector)
+        delete pProtoHit;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
@@ -316,32 +319,34 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
     const int id(std::atoi(pTiXmlElement->Attribute("Id")));
     const int mcId(std::atoi(pTiXmlElement->Attribute("MCId")));
 
-    ProtoHit protoHitU, protoHitV, protoHitW;
+    ProtoHit *pProtoHitU = new ProtoHit();
+    ProtoHit *pProtoHitV = new ProtoHit();
+    ProtoHit *pProtoHitW = new ProtoHit();
 
-    protoHitU.m_x = x;
-    protoHitU.m_z = u;
-    protoHitU.m_energy = energy;
-    protoHitU.m_hitType = pandora::TPC_VIEW_U;
-    protoHitU.m_id = id;
-    protoHitU.m_mcId = mcId;
+    pProtoHitU->m_x = x;
+    pProtoHitU->m_z = u;
+    pProtoHitU->m_energy = energy;
+    pProtoHitU->m_hitType = pandora::TPC_VIEW_U;
+    pProtoHitU->m_id = id;
+    pProtoHitU->m_mcId = mcId;
 
-    protoHitV.m_x = x;
-    protoHitV.m_z = v;
-    protoHitV.m_energy = energy;
-    protoHitV.m_hitType = pandora::TPC_VIEW_V;
-    protoHitV.m_id = id;
-    protoHitV.m_mcId = mcId;
+    pProtoHitV->m_x = x;
+    pProtoHitV->m_z = v;
+    pProtoHitV->m_energy = energy;
+    pProtoHitV->m_hitType = pandora::TPC_VIEW_V;
+    pProtoHitV->m_id = id;
+    pProtoHitV->m_mcId = mcId;
 
-    protoHitW.m_x = x;
-    protoHitW.m_z = w;
-    protoHitW.m_energy = energy;
-    protoHitW.m_hitType = pandora::TPC_VIEW_W;
-    protoHitW.m_id = id;
-    protoHitW.m_mcId = mcId;
+    pProtoHitW->m_x = x;
+    pProtoHitW->m_z = w;
+    pProtoHitW->m_energy = energy;
+    pProtoHitW->m_hitType = pandora::TPC_VIEW_W;
+    pProtoHitW->m_id = id;
+    pProtoHitW->m_mcId = mcId;
 
-    protoHitVectorU.push_back(protoHitU);
-    protoHitVectorV.push_back(protoHitV);
-    protoHitVectorW.push_back(protoHitW);
+    protoHitVectorU.push_back(pProtoHitU);
+    protoHitVectorV.push_back(pProtoHitV);
+    protoHitVectorW.push_back(pProtoHitW);
 
     return;
 }
@@ -400,9 +405,9 @@ float YZtoV(const float y, const float z, const Parameters &parameters)
 
 void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitVector)
 {
-    bool isU(protoHitVector.front().m_hitType == TPC_VIEW_U);
-    bool isV(protoHitVector.front().m_hitType == TPC_VIEW_V);
-    bool isW(protoHitVector.front().m_hitType == TPC_VIEW_W);
+    bool isU(protoHitVector.front()->m_hitType == TPC_VIEW_U);
+    bool isV(protoHitVector.front()->m_hitType == TPC_VIEW_V);
+    bool isW(protoHitVector.front()->m_hitType == TPC_VIEW_W);
 
     if (!isU && !isV && !isW)
         throw StopProcessingException("Unexpected hit type");
@@ -416,21 +421,21 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
     IntProtoHitVectorMap intProtoHitVectorMap;
 
     // ATTN : Begin by ordering wire number
-    for (ProtoHit &protoHit : protoHitVector)
+    for (ProtoHit *pProtoHit : protoHitVector)
     {
-        if ((isU && protoHit.m_hitType != TPC_VIEW_U) || (isV && protoHit.m_hitType != TPC_VIEW_V) || (isW && protoHit.m_hitType != TPC_VIEW_W))
+        if ((isU && pProtoHit->m_hitType != TPC_VIEW_U) || (isV && pProtoHit->m_hitType != TPC_VIEW_V) || (isW && pProtoHit->m_hitType != TPC_VIEW_W))
             throw StopProcessingException("Multiple hit types");
 
-        const int wireId(std::floor((protoHit.m_z + 0.5f * hitPitch) / hitPitch));
-        protoHit.m_z = static_cast<float>(wireId) * hitPitch;
+        const int wireId(std::floor((pProtoHit->m_z + 0.5f * hitPitch) / hitPitch));
+        pProtoHit->m_z = static_cast<float>(wireId) * hitPitch;
 
         if (intProtoHitVectorMap.find(wireId) != intProtoHitVectorMap.end())
         {
-            intProtoHitVectorMap.at(wireId).push_back(protoHit);
+            intProtoHitVectorMap.at(wireId).push_back(pProtoHit);
         }
         else
         {
-            ProtoHitVector activeProtoHitVector = {protoHit};
+            ProtoHitVector activeProtoHitVector = {pProtoHit};
             intProtoHitVectorMap.insert(IntProtoHitVectorMap::value_type(wireId, activeProtoHitVector));
         }
     }
@@ -441,61 +446,71 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
     for (auto iter : intProtoHitVectorMap)
     {
         ProtoHitVector activeProtoHitVector(iter.second);
-        ProtoHit protoHit1, protoHit2;
+        ProtoHit *pProtoHit1(nullptr);
+        ProtoHit *pProtoHit2(nullptr);
         std::sort(activeProtoHitVector.begin(), activeProtoHitVector.end(), SortProtoHits);
 
-        while (IdentifyMerge(inputParameters, activeProtoHitVector, protoHit1, protoHit2))
+        while (IdentifyMerge(inputParameters, activeProtoHitVector, pProtoHit1, pProtoHit2))
         {
-            ProtoHit mergedHit;
+            ProtoHit *pMergedHit = new ProtoHit();
 
             // ATTN : Merged hit on same wire
-            mergedHit.m_z = protoHit1.m_z;
+            pMergedHit->m_z = pProtoHit1->m_z;
             // ATTN : Energy weighted mean drift position
-            mergedHit.m_x = (protoHit1.m_x * protoHit1.m_energy + protoHit2.m_x * protoHit2.m_energy)/(protoHit1.m_energy + protoHit2.m_energy);
-            mergedHit.m_energy = protoHit1.m_energy + protoHit2.m_energy;
-            mergedHit.m_hitType = protoHit1.m_hitType;
-            mergedHit.m_id = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_id : protoHit2.m_id);
-            mergedHit.m_mcId = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_mcId : protoHit2.m_mcId);
+            pMergedHit->m_x = (pProtoHit1->m_x * pProtoHit1->m_energy + pProtoHit2->m_x * pProtoHit2->m_energy)/(pProtoHit1->m_energy + pProtoHit2->m_energy);
+            pMergedHit->m_energy = pProtoHit1->m_energy + pProtoHit2->m_energy;
+            pMergedHit->m_hitType = pProtoHit1->m_hitType;
+            pMergedHit->m_id = (pProtoHit1->m_energy > pProtoHit2->m_energy ? pProtoHit1->m_id : pProtoHit2->m_id);
+            pMergedHit->m_mcId = (pProtoHit1->m_energy > pProtoHit2->m_energy ? pProtoHit1->m_mcId : pProtoHit2->m_mcId);
 
-            activeProtoHitVector.erase(std::remove_if(activeProtoHitVector.begin(), activeProtoHitVector.end(), [](const ProtoHit &protoHit) -> bool{return protoHit.m_deleteHit;}), activeProtoHitVector.end());
+            activeProtoHitVector.erase(std::remove(activeProtoHitVector.begin(), activeProtoHitVector.end(), pProtoHit1));
+            activeProtoHitVector.erase(std::remove(activeProtoHitVector.begin(), activeProtoHitVector.end(), pProtoHit2));
+
+            delete pProtoHit1;
+            delete pProtoHit2;
 
             // ATTN: Either 1 hit and just push back, or more than one and insert such that x position ordering is preserved
             if (activeProtoHitVector.size() == 0)
             {
-                activeProtoHitVector.push_back(mergedHit);
+                activeProtoHitVector.push_back(pMergedHit);
             }
             else
             {
+                bool addedMergedHit(false);
+
                 for (ProtoHitVector::iterator iter2 = activeProtoHitVector.begin(); iter2 != activeProtoHitVector.end(); iter2++)
                 {
-                    if ((*iter2).m_x > mergedHit.m_x)
+                    if ((*iter2)->m_x > pMergedHit->m_x)
                     {
-                        activeProtoHitVector.insert(iter2, mergedHit);
+                        addedMergedHit = true;
+                        activeProtoHitVector.insert(iter2, pMergedHit);
                         break;
                     }
                 }
+
+                if (!addedMergedHit)
+                    activeProtoHitVector.push_back(pMergedHit);
             }
         }
 
         protoHitVector.insert(protoHitVector.end(), activeProtoHitVector.begin(), activeProtoHitVector.end());
+        activeProtoHitVector.clear();
     }
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
 
-bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVector, ProtoHit &protoHitA, ProtoHit &protoHitB)
+bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVector, ProtoHit *&pProtoHitA, ProtoHit *&pProtoHitB)
 {
     for (int i = 0; i < protoHitVector.size() - 1; i++)
     {
-        ProtoHit &protoHit1(protoHitVector.at(i));
-        ProtoHit &protoHit2(protoHitVector.at(i+1));
+        ProtoHit *pProtoHit1(protoHitVector.at(i));
+        ProtoHit *pProtoHit2(protoHitVector.at(i+1));
 
-        if (std::fabs(protoHit1.m_z - protoHit2.m_z) < std::numeric_limits<float>::epsilon() && (std::fabs(protoHit1.m_x - protoHit2.m_x) < inputParameters.m_hitWidth))
+        if (std::fabs(pProtoHit1->m_z - pProtoHit2->m_z) < std::numeric_limits<float>::epsilon() && (std::fabs(pProtoHit1->m_x - pProtoHit2->m_x) < inputParameters.m_hitWidth))
         {
-            protoHit1.m_deleteHit = true;
-            protoHit2.m_deleteHit = true;
-            protoHitA = protoHit1;
-            protoHitB = protoHit2;
+            pProtoHitA = pProtoHit1;
+            pProtoHitB = pProtoHit2;
             return true;
         }
     }
@@ -505,15 +520,15 @@ bool IdentifyMerge(const Parameters &inputParameters, ProtoHitVector &protoHitVe
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
 
-bool SortProtoHits(const ProtoHit &protoHit1, const ProtoHit &protoHit2)
+bool SortProtoHits(const ProtoHit *pProtoHit1, const ProtoHit *pProtoHit2)
 {
-    if (std::fabs(protoHit2.m_z - protoHit1.m_z) > std::numeric_limits<float>::epsilon())
-        return protoHit2.m_z > protoHit1.m_z;
+    if (std::fabs(pProtoHit2->m_z - pProtoHit1->m_z) > std::numeric_limits<float>::epsilon())
+        return pProtoHit2->m_z > pProtoHit1->m_z;
 
-    if (std::fabs(protoHit2.m_x - protoHit1.m_x) > std::numeric_limits<float>::epsilon())
-        return protoHit2.m_x > protoHit1.m_x;
+    if (std::fabs(pProtoHit2->m_x - pProtoHit1->m_x) > std::numeric_limits<float>::epsilon())
+        return pProtoHit2->m_x > pProtoHit1->m_x;
 
-    return protoHit2.m_energy > protoHit1.m_energy;
+    return pProtoHit2->m_energy > pProtoHit1->m_energy;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
