@@ -412,34 +412,72 @@ void DownsampleHits(const Parameters &inputParameters, ProtoHitVector &protoHitV
     if (hitPitch < std::numeric_limits<float>::epsilon())
         throw StopProcessingException("Unfeasibly pitch requested");
 
+    typedef std::map<int, ProtoHitVector> IntProtoHitVectorMap;
+    IntProtoHitVectorMap intProtoHitVectorMap;
+
     // ATTN : Begin by ordering wire number
     for (ProtoHit &protoHit : protoHitVector)
     {
         if ((isU && protoHit.m_hitType != TPC_VIEW_U) || (isV && protoHit.m_hitType != TPC_VIEW_V) || (isW && protoHit.m_hitType != TPC_VIEW_W))
             throw StopProcessingException("Multiple hit types");
 
-        protoHit.m_z = std::floor((protoHit.m_z + 0.5f * hitPitch) / hitPitch) * hitPitch;
+        const int wireId(std::floor((protoHit.m_z + 0.5f * hitPitch) / hitPitch));
+        protoHit.m_z = static_cast<float>(wireId) * hitPitch;
+
+        if (intProtoHitVectorMap.find(wireId) != intProtoHitVectorMap.end())
+        {
+            intProtoHitVectorMap.at(wireId).push_back(protoHit);
+        }
+        else
+        {
+            ProtoHitVector activeProtoHitVector = {protoHit};
+            intProtoHitVectorMap.insert(IntProtoHitVectorMap::value_type(wireId, activeProtoHitVector));
+        }
     }
 
-    ProtoHit protoHit1, protoHit2;
-    std::sort(protoHitVector.begin(), protoHitVector.end(), SortProtoHits);
+    protoHitVector.clear();
 
-    while (IdentifyMerge(inputParameters, protoHitVector, protoHit1, protoHit2))
+    // Merge along x, but only considering hits on same wire at any given time
+    for (auto iter : intProtoHitVectorMap)
     {
-        ProtoHit mergedHit;
+        ProtoHitVector activeProtoHitVector(iter.second);
+        ProtoHit protoHit1, protoHit2;
+        std::sort(activeProtoHitVector.begin(), activeProtoHitVector.end(), SortProtoHits);
 
-        // ATTN : Merged hit on same wire
-        mergedHit.m_z = protoHit1.m_z;
-        // ATTN : Energy weighted mean drift position
-        mergedHit.m_x = (protoHit1.m_x * protoHit1.m_energy + protoHit2.m_x * protoHit2.m_energy)/(protoHit1.m_energy + protoHit2.m_energy);
-        mergedHit.m_energy = protoHit1.m_energy + protoHit2.m_energy;
-        mergedHit.m_hitType = protoHit1.m_hitType;
-        mergedHit.m_id = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_id : protoHit2.m_id);
-        mergedHit.m_mcId = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_mcId : protoHit2.m_mcId);
+        while (IdentifyMerge(inputParameters, activeProtoHitVector, protoHit1, protoHit2))
+        {
+            ProtoHit mergedHit;
 
-        protoHitVector.erase(std::remove_if(protoHitVector.begin(), protoHitVector.end(), [](const ProtoHit &protoHit) -> bool{return protoHit.m_deleteHit;}), protoHitVector.end());
-        protoHitVector.push_back(mergedHit);
-        std::sort(protoHitVector.begin(), protoHitVector.end(), SortProtoHits);
+            // ATTN : Merged hit on same wire
+            mergedHit.m_z = protoHit1.m_z;
+            // ATTN : Energy weighted mean drift position
+            mergedHit.m_x = (protoHit1.m_x * protoHit1.m_energy + protoHit2.m_x * protoHit2.m_energy)/(protoHit1.m_energy + protoHit2.m_energy);
+            mergedHit.m_energy = protoHit1.m_energy + protoHit2.m_energy;
+            mergedHit.m_hitType = protoHit1.m_hitType;
+            mergedHit.m_id = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_id : protoHit2.m_id);
+            mergedHit.m_mcId = (protoHit1.m_energy > protoHit2.m_energy ? protoHit1.m_mcId : protoHit2.m_mcId);
+
+            activeProtoHitVector.erase(std::remove_if(activeProtoHitVector.begin(), activeProtoHitVector.end(), [](const ProtoHit &protoHit) -> bool{return protoHit.m_deleteHit;}), activeProtoHitVector.end());
+
+            // ATTN: Either 1 hit and just push back, or more than one and insert such that x position ordering is preserved
+            if (activeProtoHitVector.size() == 0)
+            {
+                activeProtoHitVector.push_back(mergedHit);
+            }
+            else
+            {
+                for (ProtoHitVector::iterator iter2 = activeProtoHitVector.begin(); iter2 != activeProtoHitVector.end(); iter2++)
+                {
+                    if ((*iter2).m_x > mergedHit.m_x)
+                    {
+                        activeProtoHitVector.insert(iter2, mergedHit);
+                        break;
+                    }
+                }
+            }
+        }
+
+        protoHitVector.insert(protoHitVector.end(), activeProtoHitVector.begin(), activeProtoHitVector.end());
     }
 }
 
