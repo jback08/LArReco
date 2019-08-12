@@ -113,7 +113,7 @@ void CreatePandoraInstances(const Parameters &parameters, const Pandora *&pPrima
 
 void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPandora)
 {
-    int nEvents(0);
+    int nEvents(0), nSkippedEvents(0);
 
     pandora::StringVector eventFileNameVector;
     XmlHelper::TokenizeString(parameters.m_eventFileNameList, eventFileNameVector, ":");
@@ -139,12 +139,20 @@ void ProcessEvents(const Parameters &parameters, const Pandora *const pPrimaryPa
                 break;
             }
 
-            if (parameters.m_shouldDisplayEventNumber)
-                std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
+            if (parameters.m_nEventsToSkip.IsInitialized() && (nSkippedEvents < parameters.m_nEventsToSkip.Get()))
+            {
+                nSkippedEvents++;
+                nEvents--;
+            }
+            else
+            {
+                if (parameters.m_shouldDisplayEventNumber)
+                    std::cout << std::endl << "   PROCESSING EVENT: " << (nEvents - 1) << std::endl << std::endl;
 
-            LoadEvent(parameters, pPrimaryPandora, pEventTiXmlElement);
-            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
-            PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+                LoadEvent(parameters, pPrimaryPandora, pEventTiXmlElement);
+                PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::ProcessEvent(*pPrimaryPandora));
+                PANDORA_THROW_RESULT_IF(STATUS_CODE_SUCCESS, !=, PandoraApi::Reset(*pPrimaryPandora));
+            }
 
             pEventTiXmlElement = pEventTiXmlElement->NextSiblingElement();
         }
