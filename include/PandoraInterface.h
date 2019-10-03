@@ -182,6 +182,18 @@ float YZtoU(const float y, const float z, const Parameters &parameters);
 float YZtoV(const float y, const float z, const Parameters &parameters);
 
 /**
+ *  @brief  Convert the YZ position to a V
+ *
+ *  @param  y position
+ *  @param  z position
+ *  @param  paratd::cout << "Unable to make hits" << std::endl;
+ *  eters the application parameters
+ *
+ *  @return the w position
+ */
+float YZtoW(const float y, const float z, const Parameters &parameters);
+
+/**
  *  @brief  Sort ProtoHits by position
  *
  *  @param  pProtoHit1 first hit

@@ -322,7 +322,7 @@ void LoadCell(const Parameters &inputParameters, TiXmlElement *pTiXmlElement, Pr
 
     const float u(YZtoU(localPosition.GetY(), localPosition.GetZ(), inputParameters));
     const float v(YZtoV(localPosition.GetY(), localPosition.GetZ(), inputParameters));
-    const float w(localPosition.GetZ());
+    const float w(YZtoW(localPosition.GetY(), localPosition.GetZ(), inputParameters));
     const float energy(std::atof(pTiXmlElement->Attribute("Energy")));
     const int id(std::atoi(pTiXmlElement->Attribute("Id")));
     const int mcId(std::atoi(pTiXmlElement->Attribute("MCId")));
@@ -407,6 +407,13 @@ float YZtoU(const float y, const float z, const Parameters &parameters)
 float YZtoV(const float y, const float z, const Parameters &parameters)
 {
     return (z * std::cos(parameters.m_wireAngleV) - y * std::sin(parameters.m_wireAngleV));
+}
+
+//------------------------------------------------------------------------------------------------------------------------------------------ 
+
+float YZtoW(const float y, const float z, const Parameters &parameters)
+{
+    return (z * std::cos(parameters.m_wireAngleW) - y * std::sin(parameters.m_wireAngleW));
 }
 
 //------------------------------------------------------------------------------------------------------------------------------------------ 
