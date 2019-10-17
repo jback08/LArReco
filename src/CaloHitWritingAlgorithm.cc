@@ -59,6 +59,7 @@ StatusCode CaloHitWritingAlgorithm::Run()
             featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetX()));
             featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetY()));
             featureVector.push_back(static_cast<double>(pCaloHit->GetPositionVector().GetZ()));
+            featureVector.push_back(static_cast<double>(pCaloHit->GetInputEnergy()));
             featureVector.push_back(static_cast<double>(pdg));
             featureVector.push_back(static_cast<double>(nuanceCode));
        }
